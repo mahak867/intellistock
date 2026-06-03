@@ -1,0 +1,35 @@
+# ─── Stage 1: Build dependencies ────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --user -r requirements.txt
+
+
+# ─── Stage 2: Production image ───────────────────────────────────────────────────
+FROM python:3.11-slim AS production
+
+# Security: run as non-root user
+RUN groupadd -r intellistock && useradd -r -g intellistock -d /app -s /sbin/nologin intellistock
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/intellistock/.local
+ENV PATH=/home/intellistock/.local/bin:$PATH
+
+# Copy application code
+COPY --chown=intellistock:intellistock . .
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+USER intellistock
+
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "4", "--loop", "uvloop", "--access-log"]

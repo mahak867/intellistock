@@ -1,0 +1,152 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: intellistock_postgres
+    environment:
+      POSTGRES_DB: intellistock
+      POSTGRES_USER: ${POSTGRES_USER:-intellistock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?DB password required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-intellistock}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: intellistock_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:?Redis password required} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: intellistock_api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-intellistock}:${POSTGRES_PASSWORD}@postgres:5432/intellistock
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models           # model artefacts
+      - ./.cache:/app/.cache           # market data cache
+    restart: unless-stopped
+
+  # ── Celery Worker (async tasks: retrain, email) ─────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: intellistock_worker
+    command: celery -A backend.core.celery_app worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-intellistock}:${POSTGRES_PASSWORD}@postgres:5432/intellistock
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    depends_on:
+      - api
+    volumes:
+      - ./models:/app/models
+      - ./.cache:/app/.cache
+    restart: unless-stopped
+
+  # ── Celery Beat (scheduled retrain every 24h) ───────────────────────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: intellistock_scheduler
+    command: celery -A backend.core.celery_app beat --loglevel=info
+    env_file: .env
+    depends_on:
+      - worker
+    restart: unless-stopped
+
+  # ── Streamlit Dashboard ──────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: intellistock_dashboard
+    command: streamlit run frontend/app.py --server.port=8501 --server.address=0.0.0.0
+    env_file: .env
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: intellistock_prometheus
+    volumes:
+      - ./infra/docker/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  # ── Grafana ──────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: intellistock_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Grafana password required}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ── Flower (Celery monitoring) ───────────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: intellistock_flower
+    command: celery -A backend.core.celery_app flower --port=5555
+    env_file: .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      - worker
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+
+networks:
+  default:
+    name: intellistock_network

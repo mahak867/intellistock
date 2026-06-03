@@ -1,0 +1,68 @@
+# ─── Core ML ───────────────────────────────────────────────────────────────────
+tensorflow==2.15.0
+keras==2.15.0
+scikit-learn==1.4.2
+numpy==1.26.4
+pandas==2.2.2
+ta==0.11.0                    # technical indicators (RSI, MACD, BB)
+yfinance==0.2.40
+pandas-market-calendars==4.3.1  # NSE market holiday calendar
+
+# ─── API / Backend ─────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.1
+pydantic-settings==2.3.1
+python-jose[cryptography]==3.3.0  # JWT
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+httpx==0.27.0
+slowapi==0.1.9                # rate limiting
+redis==5.0.6
+celery==5.4.0                 # async task queue
+flower==2.0.1                 # celery monitoring
+
+# ─── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.30
+alembic==1.13.1
+asyncpg==0.29.0               # async postgres driver
+psycopg2-binary==2.9.9
+
+# ─── Storage / Cloud ───────────────────────────────────────────────────────────
+boto3==1.34.131               # AWS S3 (model artefacts)
+google-cloud-storage==2.17.0  # GCS alternative
+azure-storage-blob==12.20.0   # Azure Blob alternative
+
+# ─── Caching / Monitoring ──────────────────────────────────────────────────────
+prometheus-client==0.20.0
+opentelemetry-api==1.24.0
+opentelemetry-sdk==1.24.0
+opentelemetry-instrumentation-fastapi==0.45b0
+sentry-sdk[fastapi]==2.3.1
+
+# ─── Frontend / Dashboard ──────────────────────────────────────────────────────
+streamlit==1.35.0
+plotly==5.22.0
+streamlit-authenticator==0.3.2
+streamlit-option-menu==0.3.12
+
+# ─── Testing ───────────────────────────────────────────────────────────────────
+pytest==8.2.2
+pytest-asyncio==0.23.7
+pytest-cov==5.0.0
+httpx==0.27.0
+factory-boy==3.3.0
+
+# ─── Code Quality ──────────────────────────────────────────────────────────────
+black==24.4.2
+isort==5.13.2
+flake8==7.0.0
+mypy==1.10.0
+pre-commit==3.7.1
+
+# ─── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+loguru==0.7.2
+tenacity==8.3.0               # retry logic
+joblib==1.4.2
+pyarrow==16.1.0               # fast parquet I/O
