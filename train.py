@@ -30,9 +30,15 @@ from loguru import logger
 
 from ml.data.pipeline import fetch_nifty50, fetch_ohlcv, time_series_split
 from ml.features.engineer import FeatureEngineer
-from ml.models.lstm import (TrainingConfig, build_bilstm_attention,
-                            build_gru_baseline, compare_models, evaluate_model,
-                            set_seed, train_model)
+from ml.models.lstm import (
+    TrainingConfig,
+    build_bilstm_attention,
+    build_gru_baseline,
+    compare_models,
+    evaluate_model,
+    set_seed,
+    train_model,
+)
 
 # ─── CLI ────────────────────────────────────────────────────────────────────────
 

@@ -23,11 +23,9 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 from backend.api.main import app
-from backend.api.routes.auth import (create_access_token, hash_password,
-                                     verify_password)
+from backend.api.routes.auth import create_access_token, hash_password, verify_password
 from ml.data.pipeline import fetch_ohlcv, normalise_ticker, time_series_split
-from ml.features.engineer import (FEATURE_COLS, FeatureEngineer,
-                                  compute_features)
+from ml.features.engineer import FEATURE_COLS, FeatureEngineer, compute_features
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────────
 

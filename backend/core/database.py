@@ -14,8 +14,12 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from loguru import logger
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from backend.core.config import settings
