@@ -59,6 +59,7 @@ async def readiness() -> JSONResponse:
     # ── Database check ───────────────────────────────────────────────────────
     try:
         from backend.core.database import engine
+
         if engine:
             async with engine.connect() as conn:
                 await conn.execute("SELECT 1")
@@ -73,6 +74,7 @@ async def readiness() -> JSONResponse:
     # ── Redis check ──────────────────────────────────────────────────────────
     try:
         from backend.core.redis_client import get_redis_client
+
         redis = await get_redis_client()
         t0 = time.perf_counter()
         await redis.ping()
@@ -86,6 +88,7 @@ async def readiness() -> JSONResponse:
     # ── ML model check ───────────────────────────────────────────────────────
     try:
         from backend.services.model_service import ModelService
+
         model_status = ModelService.get_status()
         checks["ml_model"] = model_status
         if model_status.get("status") != "loaded":
@@ -94,7 +97,9 @@ async def readiness() -> JSONResponse:
         checks["ml_model"] = {"status": "error", "detail": str(exc)}
         all_healthy = False
 
-    http_status = status.HTTP_200_OK if all_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
+    http_status = (
+        status.HTTP_200_OK if all_healthy else status.HTTP_503_SERVICE_UNAVAILABLE
+    )
     return JSONResponse(
         status_code=http_status,
         content={
@@ -115,7 +120,7 @@ async def detailed_health(admin: dict = Depends(require_admin)) -> dict:
     from backend.services.model_service import ModelService
 
     memory = psutil.virtual_memory()
-    disk   = psutil.disk_usage("/")
+    disk = psutil.disk_usage("/")
 
     return {
         "app": {
@@ -126,12 +131,12 @@ async def detailed_health(admin: dict = Depends(require_admin)) -> dict:
         },
         "system": {
             "cpu_percent": psutil.cpu_percent(interval=0.1),
-            "memory_used_gb":  round(memory.used  / 1e9, 2),
+            "memory_used_gb": round(memory.used / 1e9, 2),
             "memory_total_gb": round(memory.total / 1e9, 2),
-            "memory_percent":  memory.percent,
-            "disk_used_gb":    round(disk.used  / 1e9, 2),
-            "disk_total_gb":   round(disk.total / 1e9, 2),
-            "disk_percent":    disk.percent,
+            "memory_percent": memory.percent,
+            "disk_used_gb": round(disk.used / 1e9, 2),
+            "disk_total_gb": round(disk.total / 1e9, 2),
+            "disk_percent": disk.percent,
         },
         "models": ModelService.get_all_model_versions(),
         "timestamp": datetime.now(timezone.utc).isoformat(),

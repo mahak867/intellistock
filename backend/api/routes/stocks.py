@@ -22,12 +22,13 @@ from pydantic import BaseModel
 from backend.api.routes.auth import get_current_user
 from backend.core.config import settings
 from ml.data.pipeline import NIFTY50_TICKERS, fetch_ohlcv
-from ml.features.engineer import compute_features, FEATURE_COLS
+from ml.features.engineer import FEATURE_COLS, compute_features
 
 router = APIRouter()
 
 
 # ─── Schemas ────────────────────────────────────────────────────────────────────
+
 
 class WatchlistAddRequest(BaseModel):
     ticker: str
@@ -46,10 +47,13 @@ class OHLCVResponse(BaseModel):
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────────
 
+
 async def _cached_ohlcv(ticker: str, days: int) -> list[dict]:
     """Fetch OHLCV, compute indicators, return as list of dicts. Redis-cached."""
+    import hashlib
+    import json
+
     from backend.core.redis_client import get_redis_client
-    import json, hashlib
 
     cache_key = f"ohlcv:{ticker}:{days}"
     redis = await get_redis_client()
@@ -62,9 +66,22 @@ async def _cached_ohlcv(ticker: str, days: int) -> list[dict]:
     feat = compute_features(df)
 
     # Select useful columns for the response
-    cols = ["Open", "High", "Low", "Close", "Volume",
-            "RSI", "MACD", "MACD_Signal", "BB_High", "BB_Low",
-            "SMA_20", "SMA_50", "EMA_12", "Volatility_20"]
+    cols = [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "RSI",
+        "MACD",
+        "MACD_Signal",
+        "BB_High",
+        "BB_Low",
+        "SMA_20",
+        "SMA_50",
+        "EMA_12",
+        "Volatility_20",
+    ]
     available = [c for c in cols if c in feat.columns]
     result = feat[available].reset_index().rename(columns={"Date": "date"})
     result["date"] = result["date"].astype(str)
@@ -75,6 +92,7 @@ async def _cached_ohlcv(ticker: str, days: int) -> list[dict]:
 
 
 # ─── Routes ─────────────────────────────────────────────────────────────────────
+
 
 @router.get("/nifty50", summary="NIFTY50 constituent tickers")
 async def get_nifty50(current_user: dict = Depends(get_current_user)) -> dict:
@@ -104,7 +122,8 @@ async def search_stocks(
     if not results:
         results = [
             {"ticker": t, "company_name": t, "exchange": "NSE", "is_nifty50": True}
-            for t in NIFTY50_TICKERS if q_upper in t
+            for t in NIFTY50_TICKERS
+            if q_upper in t
         ]
 
     return {"query": q, "results": results[:20]}
@@ -130,7 +149,11 @@ async def get_stock_info(
     return info
 
 
-@router.get("/{ticker}/ohlcv", response_model=OHLCVResponse, summary="Historical OHLCV + indicators")
+@router.get(
+    "/{ticker}/ohlcv",
+    response_model=OHLCVResponse,
+    summary="Historical OHLCV + indicators",
+)
 async def get_ohlcv(
     ticker: str,
     days: Annotated[int, Query(ge=7, le=1825)] = 90,
@@ -145,7 +168,9 @@ async def get_ohlcv(
         data = await _cached_ohlcv(ticker, days)
     except Exception as exc:
         logger.error(f"OHLCV fetch failed for {ticker}: {exc}")
-        raise HTTPException(status_code=500, detail="Market data temporarily unavailable")
+        raise HTTPException(
+            status_code=500, detail="Market data temporarily unavailable"
+        )
 
     if not data:
         raise HTTPException(status_code=404, detail=f"No data found for {ticker}")
@@ -174,7 +199,10 @@ async def get_indicators(
 
 # ─── Watchlist ────────────────────────────────────────────────────────────────────
 
-@router.post("/watchlist", status_code=status.HTTP_201_CREATED, summary="Add ticker to watchlist")
+
+@router.post(
+    "/watchlist", status_code=status.HTTP_201_CREATED, summary="Add ticker to watchlist"
+)
 async def add_to_watchlist(
     payload: WatchlistAddRequest,
     current_user: dict = Depends(get_current_user),
@@ -198,13 +226,19 @@ async def get_watchlist(current_user: dict = Depends(get_current_user)) -> dict:
     return {"watchlist": items, "count": len(items)}
 
 
-@router.delete("/watchlist/{item_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove from watchlist")
+@router.delete(
+    "/watchlist/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove from watchlist",
+)
 async def remove_from_watchlist(
     item_id: str,
     current_user: dict = Depends(get_current_user),
 ) -> None:
     from backend.services.stock_service import StockService
 
-    deleted = await StockService.remove_watchlist(item_id=item_id, user_id=current_user["sub"])
+    deleted = await StockService.remove_watchlist(
+        item_id=item_id, user_id=current_user["sub"]
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="Watchlist item not found")

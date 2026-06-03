@@ -30,34 +30,38 @@ from loguru import logger
 
 from ml.data.pipeline import fetch_nifty50, fetch_ohlcv, time_series_split
 from ml.features.engineer import FeatureEngineer
-from ml.models.lstm import (
-    TrainingConfig,
-    build_bilstm_attention,
-    build_gru_baseline,
-    compare_models,
-    evaluate_model,
-    set_seed,
-    train_model,
-)
+from ml.models.lstm import (TrainingConfig, build_bilstm_attention,
+                            build_gru_baseline, compare_models, evaluate_model,
+                            set_seed, train_model)
 
 # ─── CLI ────────────────────────────────────────────────────────────────────────
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train IntelliStock LSTM models")
-    parser.add_argument("--ticker",     default="RELIANCE", help="NSE ticker (no .NS suffix)")
-    parser.add_argument("--exchange",   default="NSE",       choices=["NSE", "BSE"])
-    parser.add_argument("--epochs",     default=100, type=int)
-    parser.add_argument("--batch-size", default=32,  type=int)
-    parser.add_argument("--seq-len",    default=60,  type=int, help="LSTM sequence length")
-    parser.add_argument("--horizon",    default=1,   type=int, help="Prediction horizon (days)")
-    parser.add_argument("--seed",       default=42,  type=int)
-    parser.add_argument("--upload",     action="store_true",  help="Upload model to cloud storage")
-    parser.add_argument("--output-dir", default="models",     help="Local model output directory")
+    parser.add_argument(
+        "--ticker", default="RELIANCE", help="NSE ticker (no .NS suffix)"
+    )
+    parser.add_argument("--exchange", default="NSE", choices=["NSE", "BSE"])
+    parser.add_argument("--epochs", default=100, type=int)
+    parser.add_argument("--batch-size", default=32, type=int)
+    parser.add_argument("--seq-len", default=60, type=int, help="LSTM sequence length")
+    parser.add_argument(
+        "--horizon", default=1, type=int, help="Prediction horizon (days)"
+    )
+    parser.add_argument("--seed", default=42, type=int)
+    parser.add_argument(
+        "--upload", action="store_true", help="Upload model to cloud storage"
+    )
+    parser.add_argument(
+        "--output-dir", default="models", help="Local model output directory"
+    )
     parser.add_argument("--lookback-years", default=5, type=int)
     return parser.parse_args()
 
 
 # ─── Main training pipeline ──────────────────────────────────────────────────────
+
 
 def train(args: argparse.Namespace) -> dict:
     set_seed(args.seed)
@@ -79,7 +83,7 @@ def train(args: argparse.Namespace) -> dict:
     # ── Step 2: Fetch NIFTY50 macro feature ─────────────────────────────────
     logger.info("Step 2/8: Fetching NIFTY50 macro feature")
     start_str = df.index[0].strftime("%Y-%m-%d")
-    end_str   = df.index[-1].strftime("%Y-%m-%d")
+    end_str = df.index[-1].strftime("%Y-%m-%d")
     nifty = fetch_nifty50(start=start_str, end=end_str)
 
     # ── Step 3: Train/val/test split (chronological, no shuffle) ────────────
@@ -93,8 +97,8 @@ def train(args: argparse.Namespace) -> dict:
         prediction_horizon=args.horizon,
     )
     X_train, y_train = fe.fit_transform(train_df, nifty_series=nifty)
-    X_val,   y_val   = fe.transform(val_df,   nifty_series=nifty)
-    X_test,  y_test  = fe.transform(test_df,  nifty_series=nifty)
+    X_val, y_val = fe.transform(val_df, nifty_series=nifty)
+    X_test, y_test = fe.transform(test_df, nifty_series=nifty)
 
     n_features = X_train.shape[2]
     logger.info(
@@ -135,7 +139,10 @@ def train(args: argparse.Namespace) -> dict:
     logger.info("Step 6/8: Evaluating on held-out test set")
     all_metrics = []
 
-    for model, name in [(bilstm_model, "BiLSTM_Attention"), (gru_model, "GRU_Baseline")]:
+    for model, name in [
+        (bilstm_model, "BiLSTM_Attention"),
+        (gru_model, "GRU_Baseline"),
+    ]:
         y_pred_scaled = model.predict(X_test, verbose=0).flatten()
         y_true_actual = fe.inverse_transform_close(y_test)
         y_pred_actual = fe.inverse_transform_close(y_pred_scaled)
@@ -149,14 +156,18 @@ def train(args: argparse.Namespace) -> dict:
 
     # Best model = lowest RMSE
     best_metrics = min(all_metrics, key=lambda x: x["RMSE"])
-    best_model = bilstm_model if best_metrics["model"].startswith("BiLSTM") else gru_model
-    logger.success(f"Best model: {best_metrics['model']} (RMSE={best_metrics['RMSE']:.2f})")
+    best_model = (
+        bilstm_model if best_metrics["model"].startswith("BiLSTM") else gru_model
+    )
+    logger.success(
+        f"Best model: {best_metrics['model']} (RMSE={best_metrics['RMSE']:.2f})"
+    )
 
     # ── Step 8: Save model + feature engineer ────────────────────────────────
     logger.info("Step 8/8: Saving artefacts")
     model_path = output_dir / f"{run_id}_best_model.keras"
-    fe_path    = output_dir / f"{run_id}_feature_engineer.pkl"
-    meta_path  = output_dir / f"{run_id}_metadata.json"
+    fe_path = output_dir / f"{run_id}_feature_engineer.pkl"
+    meta_path = output_dir / f"{run_id}_metadata.json"
 
     best_model.save(str(model_path))
     with open(fe_path, "wb") as f:
@@ -194,12 +205,15 @@ def train(args: argparse.Namespace) -> dict:
     return metadata
 
 
-def _upload_to_cloud(model_path: Path, fe_path: Path, meta_path: Path, run_id: str) -> None:
+def _upload_to_cloud(
+    model_path: Path, fe_path: Path, meta_path: Path, run_id: str
+) -> None:
     """Upload artefacts to configured cloud storage (S3/GCS/Azure)."""
     from backend.core.config import settings
 
     if settings.MODEL_STORE == "s3":
         import boto3
+
         s3 = boto3.client("s3", region_name=settings.AWS_REGION)
         for path in [model_path, fe_path, meta_path]:
             key = f"models/{run_id}/{path.name}"
@@ -208,16 +222,22 @@ def _upload_to_cloud(model_path: Path, fe_path: Path, meta_path: Path, run_id: s
 
     elif settings.MODEL_STORE == "gcs":
         from google.cloud import storage as gcs
+
         client = gcs.Client(project=settings.GCP_PROJECT_ID)
         bucket = client.bucket(settings.MODEL_BUCKET)
         for path in [model_path, fe_path, meta_path]:
             blob = bucket.blob(f"models/{run_id}/{path.name}")
             blob.upload_from_filename(str(path))
-            logger.info(f"Uploaded → gs://{settings.MODEL_BUCKET}/models/{run_id}/{path.name}")
+            logger.info(
+                f"Uploaded → gs://{settings.MODEL_BUCKET}/models/{run_id}/{path.name}"
+            )
 
     elif settings.MODEL_STORE == "azure":
         from azure.storage.blob import BlobServiceClient
-        client = BlobServiceClient.from_connection_string(settings.AZURE_STORAGE_CONNECTION_STRING)
+
+        client = BlobServiceClient.from_connection_string(
+            settings.AZURE_STORAGE_CONNECTION_STRING
+        )
         container = client.get_container_client(settings.MODEL_BUCKET)
         for path in [model_path, fe_path, meta_path]:
             blob_name = f"models/{run_id}/{path.name}"
@@ -234,6 +254,8 @@ if __name__ == "__main__":
     args = parse_args()
     result = train(args)
     print(f"\n✅ Training complete — Run ID: {result['run_id']}")
-    print(f"   RMSE: {result['metrics']['RMSE']:.2f} | "
-          f"MAPE: {result['metrics']['MAPE']:.2f}% | "
-          f"DA: {result['metrics']['Directional_Accuracy']:.1f}%")
+    print(
+        f"   RMSE: {result['metrics']['RMSE']:.2f} | "
+        f"MAPE: {result['metrics']['MAPE']:.2f}% | "
+        f"DA: {result['metrics']['Directional_Accuracy']:.1f}%"
+    )

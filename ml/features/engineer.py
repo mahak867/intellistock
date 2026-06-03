@@ -18,7 +18,6 @@ import ta
 from loguru import logger
 from sklearn.preprocessing import MinMaxScaler
 
-
 # ─── Indicator warm-up periods ──────────────────────────────────────────────────
 
 WARMUP_PERIODS = {
@@ -65,7 +64,7 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     # ── Price-based features ─────────────────────────────────────────────────
     df["Returns"] = close.pct_change()
     df["Log_Returns"] = np.log(close / close.shift(1))
-    df["HL_Ratio"] = (high - low) / close               # daily range as % of close
+    df["HL_Ratio"] = (high - low) / close  # daily range as % of close
     df["OC_Ratio"] = (close - df["Open"]) / df["Open"]  # open-close momentum
 
     # ── Moving Averages ──────────────────────────────────────────────────────
@@ -121,14 +120,35 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
 # ── Feature columns used for model input (order matters for scaler) ─────────────
 
 FEATURE_COLS = [
-    "Close", "Returns", "Log_Returns", "HL_Ratio", "OC_Ratio",
-    "SMA_20", "SMA_50", "EMA_12", "EMA_26",
-    "Price_SMA20_Ratio", "Price_SMA50_Ratio", "SMA20_SMA50_Cross",
-    "RSI", "RSI_Overbought", "RSI_Oversold",
-    "MACD", "MACD_Signal", "MACD_Hist", "MACD_Crossover",
-    "BB_High", "BB_Low", "BB_Width", "BB_Position",
-    "Volume", "Volume_Ratio", "OBV_Norm",
-    "ATR", "Volatility_20", "Volatility_5",
+    "Close",
+    "Returns",
+    "Log_Returns",
+    "HL_Ratio",
+    "OC_Ratio",
+    "SMA_20",
+    "SMA_50",
+    "EMA_12",
+    "EMA_26",
+    "Price_SMA20_Ratio",
+    "Price_SMA50_Ratio",
+    "SMA20_SMA50_Cross",
+    "RSI",
+    "RSI_Overbought",
+    "RSI_Oversold",
+    "MACD",
+    "MACD_Signal",
+    "MACD_Hist",
+    "MACD_Crossover",
+    "BB_High",
+    "BB_Low",
+    "BB_Width",
+    "BB_Position",
+    "Volume",
+    "Volume_Ratio",
+    "OBV_Norm",
+    "ATR",
+    "Volatility_20",
+    "Volatility_5",
     "IsHoliday",
 ]
 
@@ -152,9 +172,12 @@ class FeatureEngineer:
 
     The scaler is fitted ONLY on training data — zero leakage into val/test.
     """
+
     sequence_length: int = 60
     prediction_horizon: int = 1
-    scaler: MinMaxScaler = field(default_factory=lambda: MinMaxScaler(feature_range=(0, 1)))
+    scaler: MinMaxScaler = field(
+        default_factory=lambda: MinMaxScaler(feature_range=(0, 1))
+    )
     _is_fitted: bool = field(default=False, init=False)
     feature_cols: list[str] = field(default_factory=lambda: list(FEATURE_COLS))
 
@@ -187,7 +210,9 @@ class FeatureEngineer:
         feat = self._prepare(train_df, nifty_series)
         scaled = self.scaler.fit_transform(feat.values)
         self._is_fitted = True
-        logger.info(f"Scaler fitted on {len(feat)} training rows | {len(self.feature_cols)} features")
+        logger.info(
+            f"Scaler fitted on {len(feat)} training rows | {len(self.feature_cols)} features"
+        )
         return self._make_sequences(scaled)
 
     def transform(

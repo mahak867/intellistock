@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # ── API Security ────────────────────────────────────────────────────────
-    SECRET_KEY: str = Field(..., min_length=32)          # REQUIRED — no default
+    SECRET_KEY: str = Field(..., min_length=32)  # REQUIRED — no default
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -57,21 +57,21 @@ class Settings(BaseSettings):
 
     # ── Redis ───────────────────────────────────────────────────────────────
     REDIS_URL: RedisDsn = Field(...)
-    CACHE_TTL_SECONDS: int = 300            # 5 min default cache
-    PREDICTION_CACHE_TTL: int = 900         # 15 min for predictions
+    CACHE_TTL_SECONDS: int = 300  # 5 min default cache
+    PREDICTION_CACHE_TTL: int = 900  # 15 min for predictions
 
     # ── ML Model Config ─────────────────────────────────────────────────────
-    MODEL_STORE: str = "s3"                 # "s3" | "gcs" | "azure" | "local"
+    MODEL_STORE: str = "s3"  # "s3" | "gcs" | "azure" | "local"
     MODEL_BUCKET: str = "intellistock-models"
     MODEL_VERSION: str = "v1"
-    SEQUENCE_LENGTH: int = 60              # 60 trading days look-back
-    PREDICTION_HORIZON: int = 5            # predict next 5 days
+    SEQUENCE_LENGTH: int = 60  # 60 trading days look-back
+    PREDICTION_HORIZON: int = 5  # predict next 5 days
     RETRAIN_INTERVAL_HOURS: int = 24
 
     # ── Cloud Storage ───────────────────────────────────────────────────────
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
-    AWS_REGION: str = "ap-south-1"        # Mumbai region — India-first
+    AWS_REGION: str = "ap-south-1"  # Mumbai region — India-first
 
     GCP_PROJECT_ID: str | None = None
     GCP_SERVICE_ACCOUNT_KEY: str | None = None
@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     YFINANCE_TIMEOUT: int = 30
 
     # ── Celery ──────────────────────────────────────────────────────────────
-    CELERY_BROKER_URL: str | None = None   # defaults to REDIS_URL if not set
+    CELERY_BROKER_URL: str | None = None  # defaults to REDIS_URL if not set
     CELERY_RESULT_BACKEND: str | None = None
 
     @field_validator("SECRET_KEY")

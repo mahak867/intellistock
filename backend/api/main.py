@@ -73,13 +73,17 @@ limiter = Limiter(
 
 # ─── Lifespan (startup/shutdown) ─────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Startup: warm caches, load model. Shutdown: flush connections."""
-    logger.info(f"IntelliStock {settings.APP_VERSION} starting in {settings.ENVIRONMENT} mode")
+    logger.info(
+        f"IntelliStock {settings.APP_VERSION} starting in {settings.ENVIRONMENT} mode"
+    )
 
     # Import here to avoid circular imports at module level
     from backend.services.model_service import ModelService
+
     from backend.core.database import init_db
     from backend.core.redis_client import init_redis
 
@@ -92,10 +96,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     logger.info("Shutting down IntelliStock")
     from backend.core.redis_client import close_redis
+
     await close_redis()
 
 
 # ─── App factory ────────────────────────────────────────────────────────────────
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -105,7 +111,9 @@ def create_app() -> FastAPI:
             "BUY/SELL/HOLD signals, and portfolio analytics for Indian equities."
         ),
         version=settings.APP_VERSION,
-        docs_url="/docs" if not settings.is_production else None,   # hide Swagger in prod
+        docs_url=(
+            "/docs" if not settings.is_production else None
+        ),  # hide Swagger in prod
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
         lifespan=lifespan,
@@ -161,7 +169,9 @@ def create_app() -> FastAPI:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if settings.is_production:
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         # Prometheus
         REQUEST_COUNT.labels(
@@ -184,11 +194,13 @@ def create_app() -> FastAPI:
 
     # ── Routers ───────────────────────────────────────────────────────────────
     API_V1 = "/api/v1"
-    app.include_router(health.router,      prefix=f"{API_V1}/health",      tags=["Health"])
-    app.include_router(auth.router,        prefix=f"{API_V1}/auth",        tags=["Auth"])
-    app.include_router(users.router,       prefix=f"{API_V1}/users",       tags=["Users"])
-    app.include_router(stocks.router,      prefix=f"{API_V1}/stocks",      tags=["Stocks"])
-    app.include_router(predictions.router, prefix=f"{API_V1}/predictions", tags=["Predictions"])
+    app.include_router(health.router, prefix=f"{API_V1}/health", tags=["Health"])
+    app.include_router(auth.router, prefix=f"{API_V1}/auth", tags=["Auth"])
+    app.include_router(users.router, prefix=f"{API_V1}/users", tags=["Users"])
+    app.include_router(stocks.router, prefix=f"{API_V1}/stocks", tags=["Stocks"])
+    app.include_router(
+        predictions.router, prefix=f"{API_V1}/predictions", tags=["Predictions"]
+    )
 
     return app
 

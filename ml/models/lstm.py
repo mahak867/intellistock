@@ -23,8 +23,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
 
-
 # ─── Reproducibility ────────────────────────────────────────────────────────────
+
 
 def set_seed(seed: int = 42) -> None:
     tf.random.set_seed(seed)
@@ -32,6 +32,7 @@ def set_seed(seed: int = 42) -> None:
 
 
 # ─── Attention Layer ─────────────────────────────────────────────────────────────
+
 
 class BahdanauAttention(layers.Layer):
     """
@@ -47,9 +48,9 @@ class BahdanauAttention(layers.Layer):
     def call(self, lstm_output: tf.Tensor) -> tf.Tensor:
         # lstm_output: (batch, seq_len, features)
         score = self.V(tf.nn.tanh(self.W(lstm_output)))  # (batch, seq_len, 1)
-        weights = tf.nn.softmax(score, axis=1)            # (batch, seq_len, 1)
-        context = weights * lstm_output                   # (batch, seq_len, features)
-        return tf.reduce_sum(context, axis=1)             # (batch, features)
+        weights = tf.nn.softmax(score, axis=1)  # (batch, seq_len, 1)
+        context = weights * lstm_output  # (batch, seq_len, features)
+        return tf.reduce_sum(context, axis=1)  # (batch, features)
 
     def get_config(self) -> dict:
         config = super().get_config()
@@ -58,6 +59,7 @@ class BahdanauAttention(layers.Layer):
 
 
 # ─── Model factory ───────────────────────────────────────────────────────────────
+
 
 def build_bilstm_attention(
     sequence_length: int,
@@ -94,7 +96,7 @@ def build_bilstm_attention(
         x = layers.Bidirectional(
             layers.LSTM(
                 units,
-                return_sequences=True,              # always True — attention needs it
+                return_sequences=True,  # always True — attention needs it
                 dropout=dropout_rate,
                 recurrent_dropout=recurrent_dropout,
                 kernel_regularizer=regularizers.L2(l2_reg),
@@ -124,7 +126,7 @@ def build_bilstm_attention(
     model = keras.Model(inputs=inp, outputs=out, name="IntelliStock_BiLSTM_Attention")
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0),
-        loss="huber",   # robust to outliers vs MSE
+        loss="huber",  # robust to outliers vs MSE
         metrics=["mae"],
     )
     return model
@@ -161,12 +163,13 @@ def build_gru_baseline(
 
 # ─── Training pipeline ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class TrainingConfig:
     epochs: int = 100
     batch_size: int = 32
-    patience: int = 15          # EarlyStopping patience
-    lr_patience: int = 7        # ReduceLROnPlateau patience
+    patience: int = 15  # EarlyStopping patience
+    lr_patience: int = 7  # ReduceLROnPlateau patience
     lr_factor: float = 0.5
     min_lr: float = 1e-6
     checkpoint_dir: Path = field(default_factory=lambda: Path("models/checkpoints"))
@@ -220,13 +223,14 @@ def train_model(
         f"epochs={config.epochs} | batch={config.batch_size}"
     )
     history = model.fit(
-        X_train, y_train,
+        X_train,
+        y_train,
         validation_data=(X_val, y_val),
         epochs=config.epochs,
         batch_size=config.batch_size,
         callbacks=get_callbacks(config),
         verbose=1,
-        shuffle=False,   # CRITICAL: never shuffle time series
+        shuffle=False,  # CRITICAL: never shuffle time series
     )
     return history
 
@@ -253,7 +257,10 @@ def evaluate_model(
 
     # MAPE — guard against zero true values
     mape = float(
-        np.mean(np.abs((y_true_actual - y_pred_actual) / (np.abs(y_true_actual) + 1e-10))) * 100
+        np.mean(
+            np.abs((y_true_actual - y_pred_actual) / (np.abs(y_true_actual) + 1e-10))
+        )
+        * 100
     )
 
     # Directional accuracy

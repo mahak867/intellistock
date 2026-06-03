@@ -14,12 +14,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from loguru import logger
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
+                                    async_sessionmaker, create_async_engine)
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from backend.core.config import settings
@@ -37,14 +33,15 @@ def _create_engine() -> AsyncEngine:
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
         pool_timeout=settings.DB_POOL_TIMEOUT,
-        pool_pre_ping=True,          # detect stale connections before using them
-        pool_recycle=3600,           # recycle connections after 1 hour
+        pool_pre_ping=True,  # detect stale connections before using them
+        pool_recycle=3600,  # recycle connections after 1 hour
         echo=settings.is_development,
         future=True,
     )
 
 
 # ─── Init ───────────────────────────────────────────────────────────────────────
+
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(3), reraise=True)
 async def init_db() -> None:
@@ -71,10 +68,13 @@ async def init_db() -> None:
             await conn.execute("SELECT 1")
         logger.info("Database connection verified")
 
-    logger.info(f"Database ready: {settings.DATABASE_URL.host}:{settings.DATABASE_URL.port}")
+    logger.info(
+        f"Database ready: {settings.DATABASE_URL.host}:{settings.DATABASE_URL.port}"
+    )
 
 
 # ─── Session dependency ─────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -98,6 +98,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # ─── Teardown ───────────────────────────────────────────────────────────────────
+
 
 async def close_db() -> None:
     global engine

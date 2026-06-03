@@ -23,12 +23,14 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 from backend.api.main import app
-from backend.api.routes.auth import create_access_token, hash_password, verify_password
+from backend.api.routes.auth import (create_access_token, hash_password,
+                                     verify_password)
 from ml.data.pipeline import fetch_ohlcv, normalise_ticker, time_series_split
-from ml.features.engineer import FeatureEngineer, compute_features, FEATURE_COLS
-
+from ml.features.engineer import (FEATURE_COLS, FeatureEngineer,
+                                  compute_features)
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_ohlcv() -> pd.DataFrame:
@@ -40,10 +42,10 @@ def sample_ohlcv() -> pd.DataFrame:
     close = np.maximum(close, 100)
     return pd.DataFrame(
         {
-            "Open":   close * (1 + np.random.randn(n) * 0.005),
-            "High":   close * (1 + np.abs(np.random.randn(n)) * 0.01),
-            "Low":    close * (1 - np.abs(np.random.randn(n)) * 0.01),
-            "Close":  close,
+            "Open": close * (1 + np.random.randn(n) * 0.005),
+            "High": close * (1 + np.abs(np.random.randn(n)) * 0.01),
+            "Low": close * (1 - np.abs(np.random.randn(n)) * 0.01),
+            "Close": close,
             "Volume": np.random.randint(1_000_000, 10_000_000, n).astype(float),
             "IsHoliday": False,
         },
@@ -69,18 +71,21 @@ async def client():
 
 # ─── Data Pipeline Tests ─────────────────────────────────────────────────────────
 
+
 class TestDataPipeline:
 
     def test_normalise_ticker_adds_ns_suffix(self):
         assert normalise_ticker("RELIANCE") == "RELIANCE.NS"
         assert normalise_ticker("RELIANCE.NS") == "RELIANCE.NS"  # idempotent
-        assert normalise_ticker("reliance") == "RELIANCE.NS"     # normalises case
+        assert normalise_ticker("reliance") == "RELIANCE.NS"  # normalises case
 
     def test_normalise_ticker_bse(self):
         assert normalise_ticker("TCS", exchange="BSE") == "TCS.BO"
 
     def test_time_series_split_proportions(self, sample_ohlcv):
-        train, val, test = time_series_split(sample_ohlcv, test_ratio=0.15, val_ratio=0.10)
+        train, val, test = time_series_split(
+            sample_ohlcv, test_ratio=0.15, val_ratio=0.10
+        )
         total = len(sample_ohlcv)
         assert len(train) + len(val) + len(test) == total
 
@@ -88,19 +93,20 @@ class TestDataPipeline:
         """Temporal order must be preserved — no data from the future in train."""
         train, val, test = time_series_split(sample_ohlcv)
         assert train.index[-1] < val.index[0], "Train bleeds into val"
-        assert val.index[-1]   < test.index[0], "Val bleeds into test"
+        assert val.index[-1] < test.index[0], "Val bleeds into test"
 
     def test_time_series_split_no_overlap(self, sample_ohlcv):
         train, val, test = time_series_split(sample_ohlcv)
         train_idx = set(train.index)
-        val_idx   = set(val.index)
-        test_idx  = set(test.index)
-        assert train_idx.isdisjoint(val_idx),  "Train/val overlap — DATA LEAKAGE"
+        val_idx = set(val.index)
+        test_idx = set(test.index)
+        assert train_idx.isdisjoint(val_idx), "Train/val overlap — DATA LEAKAGE"
         assert train_idx.isdisjoint(test_idx), "Train/test overlap — DATA LEAKAGE"
-        assert val_idx.isdisjoint(test_idx),   "Val/test overlap — DATA LEAKAGE"
+        assert val_idx.isdisjoint(test_idx), "Val/test overlap — DATA LEAKAGE"
 
 
 # ─── Feature Engineering Tests ───────────────────────────────────────────────────
+
 
 class TestFeatureEngineer:
 
@@ -150,6 +156,7 @@ class TestFeatureEngineer:
 
 # ─── Auth Tests ───────────────────────────────────────────────────────────────────
 
+
 class TestAuth:
 
     def test_password_hashing_and_verification(self):
@@ -162,8 +169,12 @@ class TestAuth:
     def test_create_access_token_contains_correct_claims(self):
         token = create_access_token(subject="user-123", role="admin")
         from jose import jwt
+
         from backend.core.config import settings
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         assert payload["sub"] == "user-123"
         assert payload["role"] == "admin"
         assert payload["type"] == "access"
@@ -171,9 +182,13 @@ class TestAuth:
 
     def test_access_token_expires(self):
         from jose import jwt
+
         from backend.core.config import settings
+
         token = create_access_token(subject="user-123")
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         now = datetime.now(timezone.utc)
         assert exp > now
@@ -181,6 +196,7 @@ class TestAuth:
 
 
 # ─── API Endpoint Tests ───────────────────────────────────────────────────────────
+
 
 class TestHealthEndpoint:
 
@@ -212,6 +228,7 @@ class TestPredictionsEndpoint:
     @pytest.mark.asyncio
     async def test_prediction_with_valid_token(self, client, valid_token):
         from backend.services.prediction_service import PredictionService
+
         mock_prediction = MagicMock()
         mock_prediction.model_dump.return_value = {
             "ticker": "RELIANCE",
@@ -219,19 +236,34 @@ class TestPredictionsEndpoint:
             "currency": "INR",
             "predictions": [],
             "signal": {
-                "ticker": "RELIANCE", "signal": "HOLD", "confidence": 0.65,
-                "current_price": 2500.0, "predicted_price": 2510.0,
-                "predicted_return_pct": 0.4, "rsi": 55.0,
-                "macd_bullish": True, "generated_at": datetime.utcnow().isoformat(),
+                "ticker": "RELIANCE",
+                "signal": "HOLD",
+                "confidence": 0.65,
+                "current_price": 2500.0,
+                "predicted_price": 2510.0,
+                "predicted_return_pct": 0.4,
+                "rsi": 55.0,
+                "macd_bullish": True,
+                "generated_at": datetime.utcnow().isoformat(),
                 "model_version": "v1",
             },
-            "metrics": {"RMSE": 25.5, "MAE": 18.2, "MAPE": 1.1, "Directional_Accuracy": 64.5},
+            "metrics": {
+                "RMSE": 25.5,
+                "MAE": 18.2,
+                "MAPE": 1.1,
+                "Directional_Accuracy": 64.5,
+            },
             "model_version": "v1",
             "cached": False,
             "generated_at": datetime.utcnow().isoformat(),
         }
 
-        with patch.object(PredictionService, "predict", new_callable=AsyncMock, return_value=mock_prediction):
+        with patch.object(
+            PredictionService,
+            "predict",
+            new_callable=AsyncMock,
+            return_value=mock_prediction,
+        ):
             resp = await client.get(
                 "/api/v1/predictions/RELIANCE",
                 headers={"Authorization": f"Bearer {valid_token}"},
@@ -264,6 +296,7 @@ class TestSecurityHeaders:
     @pytest.mark.asyncio
     async def test_request_id_is_uuid(self, client):
         import uuid
+
         resp = await client.get("/api/v1/health")
         request_id = resp.headers.get("X-Request-ID")
         assert request_id is not None

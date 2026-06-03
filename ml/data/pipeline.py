@@ -54,7 +54,9 @@ def get_nse_trading_days(start: str, end: str) -> pd.DatetimeIndex:
         schedule = nse_cal.schedule(start_date=start, end_date=end)
         return mcal.date_range(schedule, frequency="1D").tz_localize(None)
     except Exception as exc:
-        logger.warning(f"NSE calendar unavailable ({exc}), falling back to weekday filter")
+        logger.warning(
+            f"NSE calendar unavailable ({exc}), falling back to weekday filter"
+        )
         return pd.bdate_range(start=start, end=end)
 
 
@@ -72,10 +74,10 @@ def _fetch_raw(ticker: str, start: str, end: str, timeout: int = 30) -> pd.DataF
         ticker,
         start=start,
         end=end,
-        auto_adjust=True,      # adjusted for splits & dividends
+        auto_adjust=True,  # adjusted for splits & dividends
         progress=False,
         timeout=timeout,
-        threads=False,         # avoid race conditions
+        threads=False,  # avoid race conditions
     )
     if data.empty:
         raise ValueError(f"No data returned for {ticker} between {start} and {end}")
@@ -106,12 +108,16 @@ def fetch_ohlcv(
     """
     ticker = normalise_ticker(ticker, exchange)
     end = end or datetime.today().strftime("%Y-%m-%d")
-    start = start or (datetime.today() - timedelta(days=365 * lookback_years)).strftime("%Y-%m-%d")
+    start = start or (datetime.today() - timedelta(days=365 * lookback_years)).strftime(
+        "%Y-%m-%d"
+    )
 
     # ── Cache check ─────────────────────────────────────────────────────────
     cache_file = CACHE_DIR / f"{_cache_key(ticker, start, end)}.parquet"
     if use_cache and cache_file.exists():
-        age_hours = (datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)).seconds / 3600
+        age_hours = (
+            datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+        ).seconds / 3600
         if age_hours < 12:
             logger.info(f"Loading {ticker} from cache ({age_hours:.1f}h old)")
             return pd.read_parquet(cache_file)
@@ -135,15 +141,17 @@ def fetch_ohlcv(
     # ── Mark & fill holiday gaps ─────────────────────────────────────────────
     # IsHoliday = True for days with no exchange data (yfinance returned NaN)
     df["IsHoliday"] = df["Close"].isna()
-    df[OHLCV_COLS] = df[OHLCV_COLS].ffill()    # carry last known price forward
-    df.loc[df["IsHoliday"], "Volume"] = 0       # holidays: zero volume
+    df[OHLCV_COLS] = df[OHLCV_COLS].ffill()  # carry last known price forward
+    df.loc[df["IsHoliday"], "Volume"] = 0  # holidays: zero volume
 
     # ── Drop any remaining NaN at very start of series ──────────────────────
     df = df.dropna(subset=["Close"])
 
     # ── Data-quality checks ──────────────────────────────────────────────────
     if (df["Close"] <= 0).any():
-        logger.warning(f"{ticker}: found non-positive Close prices — check data quality")
+        logger.warning(
+            f"{ticker}: found non-positive Close prices — check data quality"
+        )
     if df.shape[0] < 252:
         logger.warning(f"{ticker}: only {df.shape[0]} rows — less than 1 year of data")
 
@@ -219,14 +227,54 @@ def fetch_multiple(
 # ── NIFTY50 constituents ─────────────────────────────────────────────────────────
 
 NIFTY50_TICKERS = [
-    "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK",
-    "HINDUNILVR", "ITC", "SBIN", "BHARTIARTL", "KOTAKBANK",
-    "LT", "AXISBANK", "ASIANPAINT", "MARUTI", "SUNPHARMA",
-    "TITAN", "BAJFINANCE", "WIPRO", "ULTRACEMCO", "NESTLEIND",
-    "POWERGRID", "NTPC", "TECHM", "HCLTECH", "TATAMOTORS",
-    "TATASTEEL", "JSWSTEEL", "GRASIM", "INDUSINDBK", "CIPLA",
-    "DRREDDY", "DIVISLAB", "BAJAJFINSV", "ADANIENT", "ADANIPORTS",
-    "COALINDIA", "ONGC", "BPCL", "HEROMOTOCO", "EICHERMOT",
-    "SHREECEM", "BRITANNIA", "APOLLOHOSP", "TATACONSUM", "SBILIFE",
-    "HDFCLIFE", "BAJAJ-AUTO", "M&M", "UPL", "HINDALCO",
+    "RELIANCE",
+    "TCS",
+    "HDFCBANK",
+    "INFY",
+    "ICICIBANK",
+    "HINDUNILVR",
+    "ITC",
+    "SBIN",
+    "BHARTIARTL",
+    "KOTAKBANK",
+    "LT",
+    "AXISBANK",
+    "ASIANPAINT",
+    "MARUTI",
+    "SUNPHARMA",
+    "TITAN",
+    "BAJFINANCE",
+    "WIPRO",
+    "ULTRACEMCO",
+    "NESTLEIND",
+    "POWERGRID",
+    "NTPC",
+    "TECHM",
+    "HCLTECH",
+    "TATAMOTORS",
+    "TATASTEEL",
+    "JSWSTEEL",
+    "GRASIM",
+    "INDUSINDBK",
+    "CIPLA",
+    "DRREDDY",
+    "DIVISLAB",
+    "BAJAJFINSV",
+    "ADANIENT",
+    "ADANIPORTS",
+    "COALINDIA",
+    "ONGC",
+    "BPCL",
+    "HEROMOTOCO",
+    "EICHERMOT",
+    "SHREECEM",
+    "BRITANNIA",
+    "APOLLOHOSP",
+    "TATACONSUM",
+    "SBILIFE",
+    "HDFCLIFE",
+    "BAJAJ-AUTO",
+    "M&M",
+    "UPL",
+    "HINDALCO",
 ]

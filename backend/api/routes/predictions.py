@@ -34,13 +34,13 @@ limiter = Limiter(key_func=get_remote_address)
 class PredictionPoint(BaseModel):
     date: str
     predicted_close: float
-    lower_bound: float     # 90% confidence interval
+    lower_bound: float  # 90% confidence interval
     upper_bound: float
 
 
 class SignalResponse(BaseModel):
     ticker: str
-    signal: str            # BUY | SELL | HOLD
+    signal: str  # BUY | SELL | HOLD
     confidence: float
     current_price: float
     predicted_price: float
@@ -57,14 +57,16 @@ class PredictionResponse(BaseModel):
     currency: str = "INR"
     predictions: list[PredictionPoint]
     signal: SignalResponse
-    metrics: dict          # RMSE, MAE, MAPE, DA from last evaluation
+    metrics: dict  # RMSE, MAE, MAPE, DA from last evaluation
     model_version: str
     cached: bool = False
     generated_at: datetime
 
 
 class BatchPredictionRequest(BaseModel):
-    tickers: list[str] = Field(max_length=10, description="Max 10 tickers per batch call")
+    tickers: list[str] = Field(
+        max_length=10, description="Max 10 tickers per batch call"
+    )
     horizon_days: int = Field(default=5, ge=1, le=30)
 
 
@@ -73,6 +75,7 @@ class BatchPredictionRequest(BaseModel):
 
 async def _get_from_cache(key: str) -> dict | None:
     from backend.core.redis_client import get_redis_client
+
     redis = await get_redis_client()
     raw = await redis.get(key)
     if raw:
@@ -80,8 +83,11 @@ async def _get_from_cache(key: str) -> dict | None:
     return None
 
 
-async def _set_cache(key: str, value: dict, ttl: int = settings.PREDICTION_CACHE_TTL) -> None:
+async def _set_cache(
+    key: str, value: dict, ttl: int = settings.PREDICTION_CACHE_TTL
+) -> None:
     from backend.core.redis_client import get_redis_client
+
     redis = await get_redis_client()
     await redis.setex(key, ttl, json.dumps(value, default=str))
 
@@ -122,12 +128,16 @@ async def predict_ticker(
     from backend.services.prediction_service import PredictionService
 
     try:
-        result = await PredictionService.predict(ticker=ticker, horizon_days=horizon_days)
+        result = await PredictionService.predict(
+            ticker=ticker, horizon_days=horizon_days
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Prediction failed for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail="Prediction service temporarily unavailable")
+        raise HTTPException(
+            status_code=500, detail="Prediction service temporarily unavailable"
+        )
 
     # ── Cache write ──────────────────────────────────────────────────────────
     await _set_cache(cache_key, result.model_dump())
@@ -159,6 +169,7 @@ async def get_signal(
         return SignalResponse(**cached)
 
     from backend.services.prediction_service import PredictionService
+
     try:
         prediction = await PredictionService.predict(ticker=ticker, horizon_days=1)
         signal = prediction.signal
@@ -185,12 +196,15 @@ async def batch_predict(
     Failed tickers are skipped with a warning, not 500'd.
     Rate limited to 10 batch calls per minute.
     """
-    from backend.services.prediction_service import PredictionService
     import asyncio
+
+    from backend.services.prediction_service import PredictionService
 
     async def safe_predict(ticker: str) -> PredictionResponse | None:
         try:
-            return await PredictionService.predict(ticker=ticker, horizon_days=payload.horizon_days)
+            return await PredictionService.predict(
+                ticker=ticker, horizon_days=payload.horizon_days
+            )
         except Exception as exc:
             logger.warning(f"Batch prediction skipped {ticker}: {exc}")
             return None
@@ -213,9 +227,12 @@ async def prediction_history(
     Used by the backtesting dashboard.
     """
     from backend.services.prediction_service import PredictionService
+
     ticker = ticker.upper().strip()
     try:
-        history = await PredictionService.get_prediction_history(ticker=ticker, days=days)
+        history = await PredictionService.get_prediction_history(
+            ticker=ticker, days=days
+        )
         return {"ticker": ticker, "history": history, "days": days}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

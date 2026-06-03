@@ -16,11 +16,8 @@ from typing import Annotated
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Security, status
-from fastapi.security import (
-    HTTPAuthorizationCredentials,
-    HTTPBearer,
-    OAuth2PasswordRequestForm,
-)
+from fastapi.security import (HTTPAuthorizationCredentials, HTTPBearer,
+                              OAuth2PasswordRequestForm)
 from jose import JWTError, jwt
 from loguru import logger
 from passlib.context import CryptContext
@@ -48,7 +45,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(subject: str, role: str = "user") -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     payload = {
         "sub": subject,
         "role": role,
@@ -60,7 +59,9 @@ def create_access_token(subject: str, role: str = "user") -> str:
 
 
 def create_refresh_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
     payload = {
         "sub": subject,
         "type": "refresh",
@@ -72,7 +73,9 @@ def create_refresh_token(subject: str) -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         return payload
     except JWTError as exc:
         raise HTTPException(
@@ -87,6 +90,7 @@ def decode_token(token: str) -> dict:
 
 async def get_redis() -> aioredis.Redis:
     from backend.core.redis_client import get_redis_client
+
     return await get_redis_client()
 
 
@@ -118,7 +122,9 @@ async def get_current_user(
 
 async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     if current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
     return current_user
 
 
@@ -228,9 +234,12 @@ async def refresh_token(
     # Verify the refresh token matches what we stored
     stored = await redis.get(f"refresh:{user_id}")
     if not stored or stored.decode() != payload.refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token invalid or already used")
+        raise HTTPException(
+            status_code=401, detail="Refresh token invalid or already used"
+        )
 
     from backend.services.user_service import UserService
+
     user = await UserService.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -238,7 +247,9 @@ async def refresh_token(
     # Rotate tokens
     new_access = create_access_token(subject=user_id, role=user.role)
     new_refresh = create_refresh_token(subject=user_id)
-    await redis.setex(f"refresh:{user_id}", settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, new_refresh)
+    await redis.setex(
+        f"refresh:{user_id}", settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, new_refresh
+    )
 
     return LoginResponse(access_token=new_access, refresh_token=new_refresh)
 
@@ -268,6 +279,7 @@ async def logout(
 async def get_me(current_user: dict = Depends(get_current_user)) -> UserResponse:
     """Return current authenticated user's profile."""
     from backend.services.user_service import UserService
+
     user = await UserService.get_by_id(current_user["sub"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

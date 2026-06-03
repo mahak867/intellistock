@@ -41,6 +41,7 @@ API_BASE = "http://localhost:8000/api/v1"
 
 # ─── Auth helpers ────────────────────────────────────────────────────────────────
 
+
 def api_login(email: str, password: str) -> dict | None:
     try:
         resp = requests.post(
@@ -80,6 +81,7 @@ if "watchlist" not in st.session_state:
 
 # ─── Login page ─────────────────────────────────────────────────────────────────
 
+
 def render_login():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -90,7 +92,9 @@ def render_login():
         with st.form("login_form"):
             email = st.text_input("Email", placeholder="you@example.com")
             password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Sign In", use_container_width=True, type="primary")
+            submitted = st.form_submit_button(
+                "Sign In", use_container_width=True, type="primary"
+            )
 
         if submitted:
             with st.spinner("Authenticating…"):
@@ -106,6 +110,7 @@ def render_login():
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────────
+
 
 def render_sidebar():
     with st.sidebar:
@@ -142,6 +147,7 @@ def render_sidebar():
 
 # ─── Prediction chart ─────────────────────────────────────────────────────────────
 
+
 def render_prediction_chart(data: dict):
     predictions = data.get("predictions", [])
     if not predictions:
@@ -157,7 +163,8 @@ def render_prediction_chart(data: dict):
     hist_df = pd.DataFrame(hist.get("data", [])) if hist else pd.DataFrame()
 
     fig = make_subplots(
-        rows=3, cols=1,
+        rows=3,
+        cols=1,
         row_heights=[0.6, 0.2, 0.2],
         shared_xaxes=True,
         subplot_titles=("Price & Forecast", "Volume", "RSI"),
@@ -173,7 +180,8 @@ def render_prediction_chart(data: dict):
                 name="Historical",
                 line=dict(color="#2563EB", width=1.5),
             ),
-            row=1, col=1,
+            row=1,
+            col=1,
         )
 
     # ── Prediction + confidence band ─────────────────────────────────────────
@@ -186,7 +194,8 @@ def render_prediction_chart(data: dict):
             showlegend=False,
             name="Upper bound",
         ),
-        row=1, col=1,
+        row=1,
+        col=1,
     )
     fig.add_trace(
         go.Scatter(
@@ -198,7 +207,8 @@ def render_prediction_chart(data: dict):
             line=dict(width=0),
             name="90% CI",
         ),
-        row=1, col=1,
+        row=1,
+        col=1,
     )
     fig.add_trace(
         go.Scatter(
@@ -209,7 +219,8 @@ def render_prediction_chart(data: dict):
             mode="lines+markers",
             marker=dict(size=6),
         ),
-        row=1, col=1,
+        row=1,
+        col=1,
     )
 
     # ── Volume ───────────────────────────────────────────────────────────────
@@ -222,15 +233,21 @@ def render_prediction_chart(data: dict):
                 marker_color="#94A3B8",
                 opacity=0.7,
             ),
-            row=2, col=1,
+            row=2,
+            col=1,
         )
 
     # ── RSI ──────────────────────────────────────────────────────────────────
     if not hist_df.empty and "RSI" in hist_df.columns:
         fig.add_trace(
-            go.Scatter(x=pd.to_datetime(hist_df["date"]), y=hist_df["RSI"],
-                       name="RSI", line=dict(color="#8B5CF6", width=1.5)),
-            row=3, col=1,
+            go.Scatter(
+                x=pd.to_datetime(hist_df["date"]),
+                y=hist_df["RSI"],
+                name="RSI",
+                line=dict(color="#8B5CF6", width=1.5),
+            ),
+            row=3,
+            col=1,
         )
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=3, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=3, col=1)
@@ -251,6 +268,7 @@ def render_prediction_chart(data: dict):
 
 # ─── Signal panel ────────────────────────────────────────────────────────────────
 
+
 def render_signal(signal: dict):
     label = signal.get("signal", "HOLD")
     conf = signal.get("confidence", 0)
@@ -258,7 +276,11 @@ def render_signal(signal: dict):
     current = signal.get("current_price", 0)
     predicted = signal.get("predicted_price", 0)
 
-    colors = {"BUY": ("🟢", "#16A34A"), "SELL": ("🔴", "#DC2626"), "HOLD": ("🟡", "#D97706")}
+    colors = {
+        "BUY": ("🟢", "#16A34A"),
+        "SELL": ("🔴", "#DC2626"),
+        "HOLD": ("🟡", "#D97706"),
+    }
     icon, color = colors.get(label, ("🟡", "#D97706"))
 
     col1, col2, col3, col4 = st.columns(4)
@@ -275,29 +297,39 @@ def render_signal(signal: dict):
 
 # ─── Model metrics ───────────────────────────────────────────────────────────────
 
+
 def render_metrics(metrics: dict):
     with st.expander("📊 Model Performance Metrics", expanded=False):
         cols = st.columns(4)
         cols[0].metric("RMSE (₹)", f"{metrics.get('RMSE', 'N/A'):.2f}")
         cols[1].metric("MAE (₹)", f"{metrics.get('MAE', 'N/A'):.2f}")
         cols[2].metric("MAPE", f"{metrics.get('MAPE', 'N/A'):.2f}%")
-        cols[3].metric("Directional Accuracy", f"{metrics.get('Directional_Accuracy', 'N/A'):.1f}%")
-        st.caption(f"Model version: {metrics.get('model_version', 'unknown')} | "
-                   f"Evaluated on {metrics.get('n_samples', '?')} test samples")
+        cols[3].metric(
+            "Directional Accuracy", f"{metrics.get('Directional_Accuracy', 'N/A'):.1f}%"
+        )
+        st.caption(
+            f"Model version: {metrics.get('model_version', 'unknown')} | "
+            f"Evaluated on {metrics.get('n_samples', '?')} test samples"
+        )
 
 
 # ─── Predictions page ────────────────────────────────────────────────────────────
+
 
 def render_predictions_page():
     st.header("🔮 Price Predictions")
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col1:
-        ticker = st.text_input(
-            "NSE Ticker",
-            value=getattr(st.session_state, "selected_ticker", "RELIANCE"),
-            placeholder="e.g. RELIANCE, TCS, INFY",
-        ).upper().strip()
+        ticker = (
+            st.text_input(
+                "NSE Ticker",
+                value=getattr(st.session_state, "selected_ticker", "RELIANCE"),
+                placeholder="e.g. RELIANCE, TCS, INFY",
+            )
+            .upper()
+            .strip()
+        )
     with col2:
         horizon = st.selectbox("Horizon", [1, 3, 5, 7, 14, 30], index=2)
     with col3:
@@ -321,10 +353,13 @@ def render_predictions_page():
             if data.get("cached"):
                 st.caption("⚡ Served from cache")
         else:
-            st.error(f"Could not load predictions for {ticker}. Check the ticker and try again.")
+            st.error(
+                f"Could not load predictions for {ticker}. Check the ticker and try again."
+            )
 
 
 # ─── Dashboard page ──────────────────────────────────────────────────────────────
+
 
 def render_dashboard():
     st.header("🏠 Market Dashboard")
@@ -346,6 +381,7 @@ def render_dashboard():
 
 
 # ─── Backtesting page ────────────────────────────────────────────────────────────
+
 
 def render_backtesting():
     st.header("📊 Backtesting")
@@ -371,11 +407,14 @@ def render_backtesting():
             st.dataframe(df, use_container_width=True)
         else:
             st.warning("No historical prediction data available for backtesting yet.")
-            st.info("Backtesting data accumulates as the model runs in production. "
-                    "Check back after a few days of live predictions.")
+            st.info(
+                "Backtesting data accumulates as the model runs in production. "
+                "Check back after a few days of live predictions."
+            )
 
 
 # ─── Main ───────────────────────────────────────────────────────────────────────
+
 
 def main():
     if not st.session_state.token:
