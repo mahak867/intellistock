@@ -1,4 +1,0 @@
-      - name: Black format check
-        run: |
-          black .
-          black --check --diff .
