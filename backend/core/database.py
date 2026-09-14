@@ -72,9 +72,8 @@ async def init_db() -> None:
             await conn.execute("SELECT 1")
         logger.info("Database connection verified")
 
-    logger.info(
-        f"Database ready: {settings.DATABASE_URL.host}:{settings.DATABASE_URL.port}"
-    )
+    host_info = settings.DATABASE_URL.hosts()[0]
+    logger.info(f"Database ready: {host_info['host']}:{host_info['port']}")
 
 
 # ─── Session dependency ─────────────────────────────────────────────────────────

@@ -11,13 +11,12 @@ IntelliStock — Stocks API
 • GET /stocks/watchlist           — get user's watchlist
 """
 
-from __future__ import annotations
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.api.routes.auth import get_current_user
 from backend.core.config import settings
@@ -31,9 +30,9 @@ router = APIRouter()
 
 
 class WatchlistAddRequest(BaseModel):
-    ticker: str
+    ticker: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$")
     exchange: str = "NSE"
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class OHLCVResponse(BaseModel):
@@ -129,6 +128,54 @@ async def search_stocks(
     return {"query": q, "results": results[:20]}
 
 
+# ─── Watchlist ────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/watchlist", status_code=status.HTTP_201_CREATED, summary="Add ticker to watchlist"
+)
+async def add_to_watchlist(
+    payload: WatchlistAddRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    from backend.services.stock_service import StockService
+
+    item = await StockService.add_watchlist(
+        user_id=current_user["sub"],
+        ticker=payload.ticker.upper(),
+        exchange=payload.exchange,
+        notes=payload.notes,
+    )
+    return {"message": "Added to watchlist", "id": str(item.id)}
+
+
+@router.get("/watchlist", summary="Get user's watchlist")
+async def get_watchlist(current_user: dict = Depends(get_current_user)) -> dict:
+    from backend.services.stock_service import StockService
+
+    items = await StockService.get_watchlist(user_id=current_user["sub"])
+    return {"watchlist": items, "count": len(items)}
+
+
+@router.delete(
+    "/watchlist/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove from watchlist",
+    response_model=None,
+)
+async def remove_from_watchlist(
+    item_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    from backend.services.stock_service import StockService
+
+    deleted = await StockService.remove_watchlist(
+        item_id=item_id, user_id=current_user["sub"]
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+
+
 @router.get("/{ticker}", summary="Stock metadata and fundamentals")
 async def get_stock_info(
     ticker: str,
@@ -195,50 +242,3 @@ async def get_indicators(
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
-
-# ─── Watchlist ────────────────────────────────────────────────────────────────────
-
-
-@router.post(
-    "/watchlist", status_code=status.HTTP_201_CREATED, summary="Add ticker to watchlist"
-)
-async def add_to_watchlist(
-    payload: WatchlistAddRequest,
-    current_user: dict = Depends(get_current_user),
-) -> dict:
-    from backend.services.stock_service import StockService
-
-    item = await StockService.add_watchlist(
-        user_id=current_user["sub"],
-        ticker=payload.ticker.upper(),
-        exchange=payload.exchange,
-        notes=payload.notes,
-    )
-    return {"message": "Added to watchlist", "id": str(item.id)}
-
-
-@router.get("/watchlist", summary="Get user's watchlist")
-async def get_watchlist(current_user: dict = Depends(get_current_user)) -> dict:
-    from backend.services.stock_service import StockService
-
-    items = await StockService.get_watchlist(user_id=current_user["sub"])
-    return {"watchlist": items, "count": len(items)}
-
-
-@router.delete(
-    "/watchlist/{item_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove from watchlist",
-)
-async def remove_from_watchlist(
-    item_id: str,
-    current_user: dict = Depends(get_current_user),
-) -> None:
-    from backend.services.stock_service import StockService
-
-    deleted = await StockService.remove_watchlist(
-        item_id=item_id, user_id=current_user["sub"]
-    )
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Watchlist item not found")

@@ -3,10 +3,8 @@
 
 > **LSTM-powered Indian stock market forecasting with BUY/SELL/HOLD signal generation, deployed on cloud infrastructure with enterprise-grade security.**
 
-[![CI/CD](https://github.com/yourgithub/intellistock/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/yourgithub/intellistock/actions)
-[![Coverage](https://codecov.io/gh/yourgithub/intellistock/branch/main/graph/badge.svg)](https://codecov.io/gh/yourgithub/intellistock)
-[![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-orange)](https://tensorflow.org)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.20-orange)](https://tensorflow.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
@@ -30,9 +28,9 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Security** | BCrypt passwords, token revocation, HTTPS-only headers, CORS, rate limits |
 | **Data** | NSE holiday calendar, yfinance with retry, parquet caching, 5Y historical |
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
-| **Deployment** | Docker + Compose, GitHub Actions CI/CD, GCP Cloud Run / AWS ECS ready |
+| **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI/CD was attempted and removed as broken — see Known Issues below before re-adding |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 85%+ coverage, unit + integration tests, anti-leakage tests |
+| **Testing** | 50 automated tests (pytest) — unit, integration, security, and anti-leakage |
 
 ---
 
@@ -72,7 +70,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 
 ### 1. Clone & setup
 ```bash
-git clone https://github.com/yourgithub/intellistock.git
+git clone https://github.com/mahak867/intellistock.git
 cd intellistock
 cp .env.example .env
 # Edit .env — fill in SECRET_KEY, DB password, Redis password
@@ -265,11 +263,10 @@ intellistock/
 
 | Model | RMSE (₹) | MAE (₹) | MAPE | Directional Acc |
 |---|---|---|---|---|
-| BiLSTM + Attention | ~25–40 | ~18–28 | ~1.1% | ~64% |
-| GRU Baseline | ~30–50 | ~22–35 | ~1.4% | ~61% |
-| Linear Regression | ~55–90 | ~40–70 | ~2.8% | ~52% |
+| GRU Baseline | 195.06 | 181.84 | 9.34% | 57.0% |
+| BiLSTM + Attention | 467.32 | 433.91 | 22.13% | 43.0% |
 
-*Results on RELIANCE.NS, 5Y data, 15% held-out test set. MAPE ~1.1% compares to 2.72% in published 2025 literature.*
+*Development-run results on a synthetic random-walk dataset used to validate the pipeline end-to-end (chronological split, leakage-safe scaling, training, evaluation) independent of any live market outcome — not yet validated against real NSE data. Reported as measured: the GRU baseline outperformed the attention model on this run, which is discussed honestly in the [research paper](docs/) rather than omitted. A walk-forward backtest of the resulting signals (long/short, 10 bps transaction cost) returned -15.04% against a +17.50% buy-and-hold benchmark over the same window — see the backtesting engine in `ml/backtest/engine.py`. Re-running `python train.py --ticker <TICKER>` with live internet access against real NSE data is the direct next step and requires no code changes.*
 
 ---
 
@@ -281,6 +278,21 @@ intellistock/
 4. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 5. Push to the branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
+
+---
+
+## 🖥️ Frontends
+
+Two independent dashboards ship in this repo, both talking to the same backend API — pick either, or run both side by side:
+
+- **`frontend/`** — the original Streamlit dashboard. Install its dependencies **separately** from the backend's, in their own virtualenv: `pip install -r requirements-dashboard.txt`. This is a separate file from `requirements.txt` on purpose — Streamlit's dependency chain conflicts with the backend's pinned FastAPI version in one shared environment (see the comment at the top of `requirements-dashboard.txt`).
+- **`frontend-react/`** — a React/Next.js dashboard built on real [ReUI](https://github.com/keenthemes/reui) components. See `frontend-react/README.md` for setup.
+
+## ⚠️ Known Issues / Honest Limitations
+
+- Model performance numbers in this README are from a synthetic-data development run used to validate the pipeline (see [Results](#-results)) — not yet run against live NSE data.
+- A GitHub Actions CI workflow was added and then removed for being broken (see commit history). The test suite itself (`pytest backend/tests/`) is real and passing; it just isn't wired to CI yet.
+- The backtesting engine (`ml/backtest/engine.py`) simulates a single ticker's history; it hasn't been run across the full NIFTY-50 universe.
 
 ---
 

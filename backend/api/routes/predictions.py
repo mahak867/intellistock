@@ -9,15 +9,19 @@ IntelliStock — Predictions API
 All responses are Redis-cached. Cache is invalidated on model retrain.
 """
 
-from __future__ import annotations
+# NOTE: deliberately NOT using `from __future__ import annotations` here.
+# With slowapi's @limiter.limit decorator wrapping these routes, deferred
+# (string) annotations made pydantic's forward-ref resolution look up
+# `Query` in the wrapper's globals instead of this module's, raising
+# PydanticUndefinedAnnotation at import time. Eager annotations sidestep it.
 
 import json
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -39,6 +43,8 @@ class PredictionPoint(BaseModel):
 
 
 class SignalResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     ticker: str
     signal: str  # BUY | SELL | HOLD
     confidence: float
@@ -52,6 +58,8 @@ class SignalResponse(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     ticker: str
     exchange: str = "NSE"
     currency: str = "INR"
@@ -64,7 +72,7 @@ class PredictionResponse(BaseModel):
 
 
 class BatchPredictionRequest(BaseModel):
-    tickers: list[str] = Field(
+    tickers: list[Annotated[str, StringConstraints(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$")]] = Field(
         max_length=10, description="Max 10 tickers per batch call"
     )
     horizon_days: int = Field(default=5, ge=1, le=30)
@@ -102,8 +110,9 @@ async def _set_cache(
 )
 @limiter.limit("30/minute")
 async def predict_ticker(
-    ticker: str,
-    horizon_days: Annotated[int, Query(ge=1, le=30)] = 5,
+    request: Request,
+    ticker: str = Path(..., min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$"),
+    horizon_days: int = Query(5, ge=1, le=30),
     current_user: dict = Depends(get_current_user),
 ) -> PredictionResponse:
     """
@@ -129,7 +138,7 @@ async def predict_ticker(
 
     try:
         result = await PredictionService.predict(
-            ticker=ticker, horizon_days=horizon_days
+            ticker=ticker, horizon_days=horizon_days, user_id=current_user["sub"]
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -140,9 +149,10 @@ async def predict_ticker(
         )
 
     # ── Cache write ──────────────────────────────────────────────────────────
-    await _set_cache(cache_key, result.model_dump())
+    result_dict = result.model_dump()
+    await _set_cache(cache_key, result_dict)
 
-    return result
+    return PredictionResponse(**result_dict)
 
 
 @router.get(
@@ -152,7 +162,8 @@ async def predict_ticker(
 )
 @limiter.limit("60/minute")
 async def get_signal(
-    ticker: str,
+    request: Request,
+    ticker: str = Path(..., min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$"),
     current_user: dict = Depends(get_current_user),
 ) -> SignalResponse:
     """
@@ -171,7 +182,9 @@ async def get_signal(
     from backend.services.prediction_service import PredictionService
 
     try:
-        prediction = await PredictionService.predict(ticker=ticker, horizon_days=1)
+        prediction = await PredictionService.predict(
+            ticker=ticker, horizon_days=1, user_id=current_user["sub"]
+        )
         signal = prediction.signal
     except Exception as e:
         logger.error(f"Signal generation failed for {ticker}: {e}")
@@ -188,6 +201,7 @@ async def get_signal(
 )
 @limiter.limit("10/minute")
 async def batch_predict(
+    request: Request,
     payload: BatchPredictionRequest,
     current_user: dict = Depends(get_current_user),
 ) -> list[PredictionResponse]:
@@ -203,7 +217,7 @@ async def batch_predict(
     async def safe_predict(ticker: str) -> PredictionResponse | None:
         try:
             return await PredictionService.predict(
-                ticker=ticker, horizon_days=payload.horizon_days
+                ticker=ticker, horizon_days=payload.horizon_days, user_id=current_user["sub"]
             )
         except Exception as exc:
             logger.warning(f"Batch prediction skipped {ticker}: {exc}")
@@ -218,8 +232,8 @@ async def batch_predict(
     summary="Historical prediction accuracy log",
 )
 async def prediction_history(
-    ticker: str,
-    days: Annotated[int, Query(ge=7, le=180)] = 30,
+    ticker: str = Path(..., min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$"),
+    days: int = Query(30, ge=7, le=180),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     """
@@ -236,3 +250,41 @@ async def prediction_history(
         return {"ticker": ticker, "history": history, "days": days}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/{ticker}/backtest",
+    summary="Walk-forward long/short backtest vs. buy-and-hold",
+)
+async def run_backtest_endpoint(
+    ticker: str = Path(..., min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$"),
+    days: int = Query(90, ge=30, le=365),
+    initial_capital: float = Query(100_000.0, gt=0),
+    allow_short: bool = Query(True),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """
+    Simulates trading the model's day-by-day signals over the last `days`
+    trading days, with a realistic transaction cost, and reports the same
+    risk-adjusted metrics (Sharpe, Sortino, max drawdown, Calmar, win rate,
+    profit factor) a professional would look at — benchmarked against
+    simple buy-and-hold over the identical window.
+
+    NOTE: for research/educational purposes. Not investment advice, and
+    not a substitute for a SEBI-registered Investment Adviser or Research
+    Analyst. Past backtested performance does not indicate future results.
+    """
+    from backend.services.backtest_service import BacktestService
+
+    ticker = ticker.upper().strip()
+    try:
+        return await BacktestService.run(
+            ticker=ticker,
+            backtest_days=days,
+            initial_capital=initial_capital,
+            allow_short=allow_short,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {e}")

@@ -103,6 +103,11 @@ class Settings(BaseSettings):
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
     def validate_environment(cls, v: Any) -> str:
+        # On Python 3.11+, str() on a `str, Enum` member returns
+        # "Environment.DEVELOPMENT" instead of "development" — must
+        # use .value explicitly for Enum instances.
+        if isinstance(v, Environment):
+            return v.value
         return str(v).lower()
 
     @property

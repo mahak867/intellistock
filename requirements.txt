@@ -1,8 +1,9 @@
 # ─── Core ML ───────────────────────────────────────────────────────────────────
-tensorflow==2.15.0
-keras==2.15.0
+tensorflow==2.20.0
+keras==3.11.3
+tensorboard==2.20.0
 scikit-learn==1.4.2
-numpy==1.26.4
+numpy>=1.26,<3
 pandas==2.2.2
 ta==0.11.0                    # technical indicators (RSI, MACD, BB)
 yfinance==0.2.40
@@ -13,8 +14,10 @@ fastapi==0.111.0
 uvicorn[standard]==0.30.1
 pydantic==2.7.1
 pydantic-settings==2.3.1
+email-validator==2.1.1          # required for pydantic EmailStr fields
 python-jose[cryptography]==3.3.0  # JWT
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1                 # passlib 1.7.4 breaks on bcrypt>=4.1 (missing __about__)
 python-multipart==0.0.9
 httpx==0.27.0
 slowapi==0.1.9                # rate limiting
@@ -41,17 +44,18 @@ opentelemetry-instrumentation-fastapi==0.45b0
 sentry-sdk[fastapi]==2.3.1
 
 # ─── Frontend / Dashboard ──────────────────────────────────────────────────────
-streamlit==1.35.0
-plotly==5.22.0
-streamlit-authenticator==0.3.2
-streamlit-option-menu==0.3.12
+# The Streamlit dashboard (frontend/app.py) has its own dependency file —
+# see requirements-dashboard.txt — because its dependency chain conflicts
+# with fastapi==0.111.0 above in a single shared environment (streamlit
+# transitively needs starlette>=0.46; fastapi 0.111.0 needs starlette<0.38).
+# Install it into a separate virtualenv if you need the Streamlit dashboard.
 
 # ─── Testing ───────────────────────────────────────────────────────────────────
 pytest==8.2.2
 pytest-asyncio==0.23.7
 pytest-cov==5.0.0
-httpx==0.27.0
 factory-boy==3.3.0
+fakeredis==2.23.2             # in-memory redis for tests (no real server needed)
 
 # ─── Code Quality ──────────────────────────────────────────────────────────────
 black==24.4.2
@@ -66,3 +70,4 @@ loguru==0.7.2
 tenacity==8.3.0               # retry logic
 joblib==1.4.2
 pyarrow==16.1.0               # fast parquet I/O
+psutil==5.9.8                 # system stats for /health/detailed

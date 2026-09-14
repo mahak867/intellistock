@@ -1,0 +1,28 @@
+# ─── IntelliStock legacy Streamlit dashboard — install separately ────────────
+#
+# WHY THIS IS A SEPARATE FILE:
+# Streamlit's dependency chain (via a modern `starlette>=0.46` requirement)
+# is incompatible with the backend's pinned `fastapi==0.111.0` (which needs
+# `starlette<0.38`) in a single shared environment — `pip install` for the
+# combined set is unsatisfiable no matter which streamlit/plotly versions
+# are chosen, because the conflict is transitively forced by fastapi itself.
+#
+# The backend (FastAPI) and this dashboard are two separate deployables that
+# happen to live in one repo. Install this into ITS OWN virtual environment,
+# separate from requirements.txt:
+#
+#   python3 -m venv .venv-dashboard
+#   source .venv-dashboard/bin/activate
+#   pip install -r requirements-dashboard.txt
+#   streamlit run frontend/app.py
+#
+# Note: as of this project, frontend/ (Streamlit) is the original dashboard.
+# A newer React/Next.js frontend (ReUI-based) also exists and talks to the
+# same backend API — see the separate frontend project for that one; it has
+# its own package.json and does not touch this file at all.
+
+streamlit==1.63.0
+plotly==5.22.0
+streamlit-authenticator==0.4.2
+streamlit-option-menu==0.4.0
+requests==2.32.3          # dashboard calls the FastAPI backend over HTTP

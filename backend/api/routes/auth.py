@@ -9,7 +9,6 @@ IntelliStock — Authentication Routes
 • GET  /auth/me          — current user info
 """
 
-from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -24,7 +23,7 @@ from fastapi.security import (
 from jose import JWTError, jwt
 from loguru import logger
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from backend.core.config import settings
 
@@ -139,6 +138,21 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=100)
 
+    @field_validator("password")
+    @classmethod
+    def password_must_fit_bcrypt(cls, v: str) -> str:
+        # bcrypt silently truncates at 72 BYTES (not characters). Without
+        # this check, two different passwords sharing the same 72-byte
+        # UTF-8 prefix (trivial with multi-byte characters like emoji)
+        # verify as identical — proved this with a direct passlib test.
+        # Reject explicitly rather than let auth silently weaken.
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError(
+                "Password is too long once encoded (max 72 bytes — multi-byte "
+                "characters like emoji count as more than 1 byte each)"
+            )
+        return v
+
 
 class LoginResponse(BaseModel):
     access_token: str
@@ -206,6 +220,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> LoginRespon
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
 
     access = create_access_token(subject=str(user.id), role=user.role)
     refresh = create_refresh_token(subject=str(user.id))
@@ -246,6 +262,12 @@ async def refresh_token(
     user = await UserService.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_active:
+        # Without this check, a deactivated account could refresh its
+        # session indefinitely as long as it already held a valid,
+        # unexpired refresh token — deactivation would never actually
+        # take effect until Redis's TTL happened to expire it.
+        raise HTTPException(status_code=401, detail="Account is deactivated")
 
     # Rotate tokens
     new_access = create_access_token(subject=user_id, role=user.role)
@@ -257,7 +279,7 @@ async def refresh_token(
     return LoginResponse(access_token=new_access, refresh_token=new_refresh)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout(
     credentials: Annotated[HTTPAuthorizationCredentials, Security(bearer)],
     current_user: dict = Depends(get_current_user),

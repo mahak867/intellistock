@@ -32,9 +32,15 @@ from ml.features.engineer import FEATURE_COLS, FeatureEngineer, compute_features
 
 @pytest.fixture
 def sample_ohlcv() -> pd.DataFrame:
-    """300 rows of synthetic OHLCV data for unit tests — no API calls."""
-    n = 300
-    dates = pd.bdate_range(start="2022-01-01", periods=n)
+    """
+    1000 rows of synthetic OHLCV data for unit tests — no API calls.
+    Must be large enough that even the smallest split (val, 10% of n)
+    comfortably exceeds MAX_WARMUP (50 rows for SMA_50) plus the
+    sequence_length used in tests (30), or feature engineering on the
+    val/test slice legitimately produces zero usable sequences.
+    """
+    n = 1000
+    dates = pd.bdate_range(start="2020-01-01", periods=n)
     np.random.seed(42)
     close = 2000 + np.cumsum(np.random.randn(n) * 20)
     close = np.maximum(close, 100)
@@ -63,8 +69,24 @@ def admin_token() -> str:
 
 @pytest_asyncio.fixture
 async def client():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
+    """
+    httpx's ASGITransport (used via the `app=` shortcut) does NOT run
+    FastAPI's lifespan startup/shutdown — so redis_client._redis_pool is
+    never initialised, and any endpoint that hits Redis (rate limiting,
+    caching) 500s with "Redis not initialised". Seed it with an in-memory
+    fakeredis instance instead of standing up a real Redis server just for
+    unit tests.
+    """
+    import fakeredis.aioredis as fake_aioredis
+
+    import backend.core.redis_client as redis_client_module
+
+    redis_client_module._redis_pool = fake_aioredis.FakeRedis(decode_responses=True)
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            yield ac
+    finally:
+        redis_client_module._redis_pool = None
 
 
 # ─── Data Pipeline Tests ─────────────────────────────────────────────────────────

@@ -124,9 +124,34 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # ── CORS ─────────────────────────────────────────────────────────────────
+    # SECURITY: never fall back to a wildcard origin here. Per the CORS spec,
+    # combining allow_origins=["*"] with allow_credentials=True is a
+    # well-documented misconfiguration (OWASP flags it directly) — it lets
+    # any website make credentialed requests against this API. The previous
+    # `... or ["*"]` fallback triggered by DEFAULT, since ALLOWED_ORIGINS
+    # defaults to an empty list — meaning every deployment that didn't
+    # explicitly set it (including this project's own default config) was
+    # silently exposed. Fail closed in production instead.
+    cors_origins = [str(o) for o in settings.ALLOWED_ORIGINS]
+    if not cors_origins:
+        if settings.is_development:
+            cors_origins = [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:8501",
+                "http://127.0.0.1:8501",
+            ]
+        else:
+            logger.warning(
+                "ALLOWED_ORIGINS is not set — CORS will allow NO cross-origin "
+                "requests until it is configured. This is intentional "
+                "fail-closed behaviour in production; set ALLOWED_ORIGINS "
+                "to your real frontend origin(s)."
+            )
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(o) for o in settings.ALLOWED_ORIGINS] or ["*"],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
@@ -135,6 +160,12 @@ def create_app() -> FastAPI:
 
     # ── Trusted host ─────────────────────────────────────────────────────────
     if settings.is_production:
+        if settings.ALLOWED_HOSTS == ["*"]:
+            logger.warning(
+                "ALLOWED_HOSTS is still the wildcard default in production — "
+                "Host header validation provides no protection until this "
+                "is set to your real domain(s)."
+            )
         app.add_middleware(
             TrustedHostMiddleware,
             allowed_hosts=settings.ALLOWED_HOSTS,
