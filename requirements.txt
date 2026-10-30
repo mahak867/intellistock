@@ -26,7 +26,7 @@ celery==5.4.0                 # async task queue
 flower==2.0.1                 # celery monitoring
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-sqlalchemy==2.0.30
+sqlalchemy[asyncio]==2.0.30
 alembic==1.13.1
 asyncpg==0.29.0               # async postgres driver
 psycopg2-binary==2.9.9

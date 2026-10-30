@@ -28,7 +28,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Security** | BCrypt passwords, token revocation, HTTPS-only headers, CORS, rate limits |
 | **Data** | NSE holiday calendar, yfinance with retry, parquet caching, 5Y historical |
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
-| **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI/CD was attempted and removed as broken — see Known Issues below before re-adding |
+| **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
 | **Testing** | 50 automated tests (pytest) — unit, integration, security, and anti-leakage |
 
@@ -248,9 +248,8 @@ intellistock/
 │   ├── docker/
 │   │   ├── Dockerfile.api       # Multi-stage production image
 │   │   └── migrations/          # Alembic schema migrations
-│   └── terraform/               # Cloud infrastructure as code
 ├── .github/workflows/
-│   └── ci-cd.yml                # GitHub Actions pipeline
+│   └── ci.yml                   # GitHub Actions: backend tests
 ├── train.py                     # Model training CLI
 ├── docker-compose.yml           # Full local dev stack
 ├── requirements.txt             # Pinned dependencies
@@ -291,7 +290,8 @@ Two independent dashboards ship in this repo, both talking to the same backend A
 ## ⚠️ Known Issues / Honest Limitations
 
 - Model performance numbers in this README are from a synthetic-data development run used to validate the pipeline (see [Results](#-results)) — not yet run against live NSE data.
-- A GitHub Actions CI workflow was added and then removed for being broken (see commit history). The test suite itself (`pytest backend/tests/`) is real and passing; it just isn't wired to CI yet.
+- CI (`.github/workflows/ci.yml`) installs `requirements.txt` and runs `pytest backend/tests/`. It was added after an earlier broken workflow was removed; check the Actions tab for its current status. There is no automated deploy (Cloud Run or otherwise) yet.
+- Celery: `backend/core/celery_app.py` provides the worker and a daily retrain beat task (`RETRAIN_TICKERS`, default `RELIANCE`). It calls `train.train()` without cloud upload; wiring it to the model registry is not done.
 - The backtesting engine (`ml/backtest/engine.py`) simulates a single ticker's history; it hasn't been run across the full NIFTY-50 universe.
 
 ---

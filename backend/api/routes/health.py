@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from loguru import logger
+from sqlalchemy import text
 
 from backend.api.routes.auth import require_admin
 from backend.core.config import settings
@@ -61,7 +62,7 @@ async def readiness() -> JSONResponse:
 
         if engine:
             async with engine.connect() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
             checks["database"] = {"status": "ok", "latency_ms": None}
         else:
             raise RuntimeError("Engine not initialised")
