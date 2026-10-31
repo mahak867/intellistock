@@ -54,7 +54,7 @@ const rsiChartConfig = {
 
 const HORIZONS = [1, 3, 5, 7, 14, 30];
 
-export default function PredictionsPage() {
+function PredictionsInner() {
   const { token } = useAuth();
   const params = useSearchParams();
 
@@ -360,5 +360,13 @@ function Metric({ label, value }: { label: string; value?: string }) {
       <p className="text-xs text-muted-foreground-2">{label}</p>
       <p className="tabular text-lg font-semibold mt-0.5">{value ?? "—"}</p>
     </div>
+  );
+}
+
+export default function PredictionsPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <PredictionsInner />
+    </React.Suspense>
   );
 }

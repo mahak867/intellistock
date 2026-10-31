@@ -14,13 +14,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap"
           rel="stylesheet"
         />
         <style>{`
           :root {
-            --font-inter: 'Inter', ui-sans-serif, system-ui, sans-serif;
-            --font-space-grotesk: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+            --font-plex-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+            --font-plex-mono: 'IBM Plex Mono', ui-monospace, monospace;
+            --font-syne: 'Syne', ui-sans-serif, system-ui, sans-serif;
           }
         `}</style>
       </head>

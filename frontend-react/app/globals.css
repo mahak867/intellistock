@@ -64,60 +64,61 @@
 }
 
 /*
- * IntelliStock theme — dark financial-dashboard palette mapped onto ReUI's
- * "nova" style token system. Deep navy base + saffron/marigold accent
- * (NSE/BSE nod), not the generic fintech-teal or AI-cliché terracotta/cream.
- * This app is dark-only, so tokens live directly on :root.
+ * IntelliStock theme: ink-black base, violet (#5350D1 family) for everything
+ * the model says (forecast, signal), teal/coral only for price direction.
+ * Dark-only, so tokens live on :root.
  */
 :root {
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-space-grotesk);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --radius: 0.625rem;
+  --font-sans: var(--font-plex-sans);
+  --font-heading: var(--font-syne);
+  --font-mono: var(--font-plex-mono);
+  --radius: 0.5rem;
 
-  --background: #0b0f1a;
-  --foreground: #e7e9ee;
-  --card: #131928;
-  --card-foreground: #e7e9ee;
-  --popover: #1a2136;
-  --popover-foreground: #e7e9ee;
+  --background: #0a0a10;
+  --foreground: #e8e7f0;
+  --card: #111118;
+  --card-foreground: #e8e7f0;
+  --popover: #17171f;
+  --popover-foreground: #e8e7f0;
 
-  --primary: #f0a93b;
-  --primary-foreground: #17130a;
-  --secondary: #1a2136;
-  --secondary-foreground: #e7e9ee;
-  --muted: #1a2136;
-  --muted-foreground: #8992a8;
-  --accent: #1a2136;
-  --accent-foreground: #e7e9ee;
+  --primary: #8b88f0;
+  --primary-foreground: #0d0c1f;
+  --secondary: #17171f;
+  --secondary-foreground: #e8e7f0;
+  --muted: #17171f;
+  --muted-foreground: #8a8a9c;
+  --accent: #1d1d28;
+  --accent-foreground: #e8e7f0;
 
-  --destructive: #f87171;
+  --destructive: #ee7167;
   --destructive-foreground: #2a0d0d;
-  --success: #34d399;
+  --success: #45bfa6;
   --success-foreground: #06281c;
   --info: #7dd3fc;
   --info-foreground: #082433;
-  --warning: #f0a93b;
+  --warning: #e6b450;
   --warning-foreground: #17130a;
 
-  --border: #232b40;
-  --input: #232b40;
-  --ring: #f0a93b80;
+  --border: #23232f;
+  --input: #23232f;
+  --ring: #8b88f080;
 
-  --chart-1: #f0a93b;
-  --chart-2: #34d399;
+  --chart-1: #8b88f0;
+  --chart-2: #45bfa6;
   --chart-3: #7dd3fc;
-  --chart-4: #a78bfa;
-  --chart-5: #f87171;
+  --chart-4: #e6b450;
+  --chart-5: #ee7167;
 
-  --sidebar: #0e1320;
-  --sidebar-foreground: #e7e9ee;
-  --sidebar-primary: #f0a93b;
-  --sidebar-primary-foreground: #17130a;
-  --sidebar-accent: #1a2136;
-  --sidebar-accent-foreground: #e7e9ee;
-  --sidebar-border: #232b40;
-  --sidebar-ring: #f0a93b80;
+  --sidebar: #0d0d14;
+  --sidebar-foreground: #e8e7f0;
+  --sidebar-primary: #8b88f0;
+  --sidebar-primary-foreground: #0d0c1f;
+  --sidebar-accent: #17171f;
+  --sidebar-accent-foreground: #e8e7f0;
+  --sidebar-border: #23232f;
+  --sidebar-ring: #8b88f080;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 body {
@@ -128,6 +129,13 @@ body {
 
 .font-display {
   font-family: var(--font-heading);
+}
+.font-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
 .tabular {
