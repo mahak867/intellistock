@@ -14,6 +14,7 @@ Production-grade investor dashboard:
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timedelta
 
@@ -362,22 +363,10 @@ def render_predictions_page():
 
 
 def render_dashboard():
-    st.header("🏠 Market Dashboard")
-    st.caption(f"NSE/BSE | Last updated: {datetime.now().strftime('%H:%M:%S IST')}")
+    from terminal import render_terminal
 
-    # Quick metrics row
-    cols = st.columns(len(st.session_state.watchlist[:5]))
-    for i, ticker in enumerate(st.session_state.watchlist[:5]):
-        signal_data = api_get(f"/predictions/{ticker}/signal", st.session_state.token)
-        if signal_data:
-            ret = signal_data.get("predicted_return_pct", 0)
-            price = signal_data.get("current_price", 0)
-            sig = signal_data.get("signal", "HOLD")
-            icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(sig, "⚪")
-            cols[i].metric(f"{icon} {ticker}", f"₹{price:,.0f}", f"{ret:+.2f}%")
-
-    st.divider()
-    st.info("Click any ticker in the sidebar to view detailed predictions.")
+    live = api_get("/health", st.session_state.token) is not None and False
+    render_terminal(live=live)
 
 
 # ─── Backtesting page ────────────────────────────────────────────────────────────
@@ -417,6 +406,8 @@ def render_backtesting():
 
 
 def main():
+    if os.environ.get("INTELLISTOCK_DEMO") == "1" and not st.session_state.token:
+        st.session_state.token = "demo"  # offline preview only; API calls will fail
     if not st.session_state.token:
         render_login()
         return
