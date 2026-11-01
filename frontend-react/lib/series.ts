@@ -6,8 +6,11 @@ import { getOhlcv, getPrediction } from "@/lib/api";
 import { demoFan, demoOhlcv, rsi as calcRsi, sma, type Candle, type FanPoint } from "@/lib/demo";
 
 export type MlMetrics = {
-  model: string; horizon_days: number; walk_forward_samples: number; directional_accuracy: number;
-  mae_log_return: number; mae_naive_baseline: number; beats_naive: boolean; band_coverage_80: number;
+  model: string; horizon_days: number; walk_forward_samples: number; market_features: boolean;
+  directional_accuracy: number; shrink: number; mae_log_return: number; mae_naive_baseline: number;
+  beats_naive: boolean; has_edge: boolean; edge_t_stat: number;
+  vol_mae_log: number; vol_naive_mae_log: number; vol_beats_naive: boolean;
+  band_coverage_80: number; band_width_pct: number; daily_vol_pct: number;
 };
 export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics };
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1");
@@ -64,3 +67,19 @@ export function readSignal(candles: Candle[], fan: FanPoint[]) {
   return { label: score >= 2 ? "Buy" : score <= -2 ? "Sell" : "Hold", score, why, exp, rsi: r };
 }
 
+
+export type Quote = { ticker: string; price: number; chg: number; spark: number[]; rsi: number };
+/** Quotes from the dev demo API so every number on screen comes from the same synthetic market. */
+export function useQuotes(tickers: string[]): Quote[] | null {
+  const key = tickers.join(",");
+  const [q, setQ] = React.useState<Quote[] | null>(null);
+  React.useEffect(() => {
+    let off = false;
+    fetch(`${API_ORIGIN}/demo/quotes?tickers=${encodeURIComponent(key)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!off) setQ(d); })
+      .catch(() => { if (!off) setQ(null); });
+    return () => { off = true; };
+  }, [key]);
+  return q;
+}

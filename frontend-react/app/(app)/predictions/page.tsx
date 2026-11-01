@@ -92,15 +92,23 @@ function PredictionsInner() {
           <div>
             <h2 className="font-display text-lg font-semibold mb-3">Model read</h2>
             <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-              <p className="font-display text-3xl font-bold">{sig.label}</p>
-              {series.metrics && !series.metrics.beats_naive && (
-                <p role="status" className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
-                  Low confidence: on past data this model was no more accurate than assuming the price stays put.
-                </p>
+              {series.metrics?.has_edge ? (
+                <>
+                  <p className="font-display text-3xl font-bold">{sig.label}</p>
+                  <ul className="space-y-1.5 text-[13px] text-muted-foreground">
+                    {sig.why.map((w) => <li key={w}>{w}</li>)}
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="font-display text-2xl font-bold leading-tight">Range only</p>
+                  <p role="status" className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    {series.metrics
+                      ? "No Buy or Sell call. In testing, this model could not predict direction better than assuming the price stays put. The range below is the useful part."
+                      : "Direction is not verified for this stock yet."}
+                  </p>
+                </>
               )}
-              <ul className="space-y-1.5 text-[13px] text-muted-foreground">
-                {sig.why.map((w) => <li key={w}>{w}</li>)}
-              </ul>
               {series.metrics && <ModelQuality m={series.metrics} />}
               <p className="border-t border-border pt-3 text-xs text-muted-foreground">
                 {series.live
@@ -118,9 +126,10 @@ function PredictionsInner() {
 function ModelQuality({ m }: { m: NonNullable<ReturnType<typeof useSeries>>["metrics"] & object }) {
   const rows: [string, string, string?][] = [
     ["Direction right", `${(m.directional_accuracy * 100).toFixed(0)}%`, "50% is a coin flip"],
-    ["Beats \"no change\"", m.beats_naive ? "Yes" : "No", `error ${(m.mae_log_return * 100).toFixed(2)}% vs ${(m.mae_naive_baseline * 100).toFixed(2)}%`],
-    ["Band holds actual", `${(m.band_coverage_80 * 100).toFixed(0)}%`, "target 80%"],
-    ["Tested on", `${m.walk_forward_samples} days`, "walk-forward, never seen in training"],
+    ["Direction beats \"no change\"", m.has_edge ? "Yes" : "No", `error ${(m.mae_log_return * 100).toFixed(2)}% vs ${(m.mae_naive_baseline * 100).toFixed(2)}%`],
+    ["Volatility beats naive", m.vol_beats_naive ? "Yes" : "No", `error ${m.vol_mae_log.toFixed(3)} vs ${m.vol_naive_mae_log.toFixed(3)} (log)`],
+    ["Range holds actual", `${(m.band_coverage_80 * 100).toFixed(0)}%`, "target 80%"],
+    ["Tested on", `${m.walk_forward_samples} days`, m.market_features ? "walk-forward, with index and VIX" : "walk-forward, price history only"],
   ];
   return (
     <dl className="space-y-2.5 border-t border-border pt-3 text-sm">
@@ -128,7 +137,7 @@ function ModelQuality({ m }: { m: NonNullable<ReturnType<typeof useSeries>>["met
       {rows.map(([k, v, note]) => (
         <div key={k} className="flex items-baseline justify-between gap-3">
           <dd className="text-muted-foreground">{k}{note && <span className="block text-[11px] opacity-70">{note}</span>}</dd>
-          <dd className={cn("font-num", k.startsWith("Beats") && (m.beats_naive ? "text-success" : "text-destructive"))}>{v}</dd>
+          <dd className={cn("font-num", (k.startsWith("Direction beats") || k.startsWith("Volatility")) && (v === "Yes" ? "text-success" : "text-destructive"))}>{v}</dd>
         </div>
       ))}
     </dl>

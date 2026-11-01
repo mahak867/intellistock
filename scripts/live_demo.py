@@ -1,20 +1,24 @@
 """
-Run the ML forecaster on REAL NSE data and report how accurate it actually is.
+Test the forecaster on REAL NSE data and report honestly what works.
 
     pip install yfinance pandas scikit-learn numpy
-    python scripts/live_demo.py                       # default: 8 NIFTY stocks
+    python scripts/live_demo.py                       # 8 NIFTY stocks
     python scripts/live_demo.py TCS INFY --horizon 5
     python scripts/live_demo.py --synthetic           # offline check, fake prices
 
-Needs internet access to Yahoo Finance. Prints per-stock walk-forward accuracy
-versus a "price stays the same" baseline, then the latest forecast.
+For each stock it runs the walk-forward test twice: price history only, and
+with NIFTY 50 + India VIX added. It reports direction accuracy, whether the
+direction forecast has a statistically real edge over "no change", whether the
+volatility forecast beats a naive one, and how often the 80% range held.
 """
 from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 
+warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd  # noqa: E402
@@ -25,16 +29,32 @@ from ml.forecast.synthetic import synthetic_ohlcv  # noqa: E402
 DEFAULT = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "MARUTI"]
 
 
-def load(ticker: str, synthetic: bool) -> pd.DataFrame:
-    if synthetic:
-        return synthetic_ohlcv(ticker, 900)
+def _download(symbol: str) -> pd.DataFrame:
     import yfinance as yf
 
-    df = yf.download(f"{ticker}.NS", period="5y", interval="1d", auto_adjust=True, progress=False)
+    df = yf.download(symbol, period="6y", interval="1d", auto_adjust=True, progress=False)
     if df is None or df.empty:
-        raise RuntimeError("no data returned")
+        raise RuntimeError(f"no data for {symbol}")
     df.columns = [str(c[0] if isinstance(c, tuple) else c).lower() for c in df.columns]
-    return df[["open", "high", "low", "close", "volume"]].dropna()
+    df.index = pd.to_datetime(df.index).tz_localize(None)
+    return df.dropna(subset=["close"])
+
+
+def load_market(synthetic: bool) -> pd.DataFrame | None:
+    if synthetic:
+        idx = synthetic_ohlcv("NIFTY", 900)
+        vix = (idx["close"].pct_change().rolling(10).std() * 100 * 16).bfill()
+        return pd.DataFrame({"index_close": idx["close"], "vix": vix})
+    try:
+        nifty, vix = _download("^NSEI"), _download("^INDIAVIX")
+        return pd.DataFrame({"index_close": nifty["close"], "vix": vix["close"]})
+    except Exception as e:
+        print(f"(market index/VIX unavailable: {e}; running price-only)")
+        return None
+
+
+def load(ticker: str, synthetic: bool) -> pd.DataFrame:
+    return synthetic_ohlcv(ticker, 900) if synthetic else _download(f"{ticker}.NS")[["open", "high", "low", "close", "volume"]]
 
 
 def main() -> None:
@@ -44,32 +64,39 @@ def main() -> None:
     ap.add_argument("--synthetic", action="store_true")
     a = ap.parse_args()
 
-    rows, wins = [], 0
+    market = load_market(a.synthetic)
+    rows, edge_p, edge_m, vol_wins, n = [], 0, 0, 0, 0
     for t in a.tickers:
         try:
             df = load(t.upper(), a.synthetic)
-            res = forecast(df, a.horizon)
-        except Exception as e:  # keep going on a bad ticker
+            base = forecast(df, a.horizon)["metrics"]
+            full = forecast(df, a.horizon, market=market) if market is not None else None
+            fm = full["metrics"] if full else base
+            last = (full or forecast(df, a.horizon))["fan"][-1]
+        except Exception as e:
             print(f"{t}: skipped ({e})")
             continue
-        m, last = res["metrics"], res["fan"][-1]
-        wins += m["beats_naive"]
+        n += 1
+        edge_p += base["has_edge"]
+        edge_m += fm["has_edge"]
+        vol_wins += fm["vol_beats_naive"]
         rows.append({
             "ticker": t.upper(),
-            "days_tested": m["walk_forward_samples"],
-            "direction_right": f"{m['directional_accuracy']:.0%}",
-            "model_err": f"{m['mae_log_return']:.2%}",
-            "no_change_err": f"{m['mae_naive_baseline']:.2%}",
-            "beats_baseline": "yes" if m["beats_naive"] else "no",
-            "band_hits": f"{m['band_coverage_80']:.0%}",
-            f"{a.horizon}d_forecast": f"{last['mean']:.2f} ({last['lo']:.2f}-{last['hi']:.2f})",
+            "days": base["walk_forward_samples"],
+            "direction": f"{base['directional_accuracy']:.0%}",
+            "edge(price)": "YES" if base["has_edge"] else "no",
+            "edge(+mkt)": "YES" if fm["has_edge"] else "no",
+            "vol>naive": "yes" if fm["vol_beats_naive"] else "no",
+            "range_hits": f"{fm['band_coverage_80']:.0%}",
+            f"{a.horizon}d_range": f"{last['lo']:.0f}-{last['hi']:.0f} (mid {last['mean']:.0f})",
         })
     if not rows:
         sys.exit("No tickers could be loaded.")
     print(pd.DataFrame(rows).to_string(index=False))
-    print(f"\nBeat the no-change baseline on {wins} of {len(rows)} stocks. "
-          "Direction near 50% and 'no' on the baseline means no usable edge. "
-          "Forecasts are not investment advice.")
+    print(f"\nDirection edge: {edge_p}/{n} price-only, {edge_m}/{n} with market features.")
+    print(f"Volatility forecast beat naive on {vol_wins}/{n}.")
+    print("'edge' means a statistically significant gain over assuming no change. "
+          "Without it the app shows the range only. Not investment advice.")
 
 
 if __name__ == "__main__":

@@ -34,3 +34,23 @@ async def demo_forecast(ticker: str, horizon: int = Query(10, ge=1, le=30)):
     if not t.replace("-", "").replace("&", "").isalnum() or len(t) > 20:
         raise HTTPException(status_code=422, detail="Invalid ticker")
     return await run_in_threadpool(_compute, t, horizon)
+
+
+@lru_cache(maxsize=8)
+def _quotes(tickers: tuple[str, ...]) -> list[dict]:
+    from ml.forecast.quick_forecast import build_features
+
+    out = []
+    for t in tickers:
+        df = synthetic_ohlcv(t, 700)
+        c = df["close"]
+        rsi = float(build_features(df)["rsi"].iloc[-1] * 100)
+        out.append({"ticker": t, "price": float(c.iloc[-1]), "chg": float((c.iloc[-1] / c.iloc[-2] - 1) * 100),
+                    "spark": [float(x) for x in c.tail(30)], "rsi": rsi})
+    return out
+
+
+@router.get("/quotes", summary="Synthetic quotes for the demo watchlist (dev only)")
+async def demo_quotes(tickers: str = Query(..., max_length=600)):
+    names = tuple(t.strip().upper() for t in tickers.split(",") if t.strip())[:60]
+    return await run_in_threadpool(_quotes, names)

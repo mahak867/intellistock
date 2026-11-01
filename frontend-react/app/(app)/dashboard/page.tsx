@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { useSeries, readSignal } from "@/lib/series";
+import { useSeries, useQuotes, readSignal } from "@/lib/series";
 import { ALL_TICKERS, SECTORS, demoQuote } from "@/lib/demo";
 import { PriceChart, type Hover } from "@/components/terminal/price-chart";
 import { Sparkline } from "@/components/terminal/sparkline";
@@ -25,6 +25,8 @@ export default function DashboardPage() {
   const shown = hover ?? last;
   const chg = last && prev ? (last.close / prev.close - 1) * 100 : 0;
   const sig = series ? readSignal(series.candles, series.fan) : null;
+  const edge = series?.metrics?.has_edge === true;
+  const lastFan = series?.fan.at(-1);
   const pos = sig ? 50 + (Math.max(-3, Math.min(3, sig.score)) / 3) * 42 : 50;
 
   return (
@@ -84,26 +86,42 @@ export default function DashboardPage() {
 
         <aside className="rounded-xl border border-border bg-card p-5 space-y-5">
           <div>
-            <p className="text-xs text-muted-foreground">Model read</p>
-            <p className="font-display text-4xl font-bold mt-1">{sig?.label ?? "…"}</p>
-            <div className="relative mt-4 h-1.5 rounded-full" style={{ background: "linear-gradient(90deg,#ee7167,#2a2a3a 50%,#45bfa6)" }}>
-              <span
-                className="absolute top-1/2 h-4 w-1.5 -translate-y-1/2 -translate-x-1/2 rounded-sm bg-foreground transition-[left] duration-300"
-                style={{ left: `${pos}%`, transitionTimingFunction: "var(--ease-out)" }}
-              />
-            </div>
-            <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Sell</span><span>Hold</span><span>Buy</span></div>
+            <p className="text-xs text-muted-foreground">{horizon}-day likely range</p>
+            {lastFan ? (
+              <p className="font-num mt-1 text-2xl leading-tight">
+                {inr(lastFan.lo, 0)} – {inr(lastFan.hi, 0)}
+              </p>
+            ) : <p className="font-display text-3xl font-bold">…</p>}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {series?.metrics ? `Holds about ${(series.metrics.band_coverage_80 * 100).toFixed(0)}% of the time in testing` : "80% band"}
+            </p>
+            {edge ? (
+              <div className="mt-4">
+                <p className="font-display text-2xl font-bold">{sig?.label}</p>
+                <div className="relative mt-2 h-1.5 rounded-full" style={{ background: "linear-gradient(90deg,#ee7167,#2a2a3a 50%,#45bfa6)" }}>
+                  <span className="absolute top-1/2 h-4 w-1.5 -translate-y-1/2 -translate-x-1/2 rounded-sm bg-foreground transition-[left] duration-300"
+                    style={{ left: `${pos}%`, transitionTimingFunction: "var(--ease-out)" }} />
+                </div>
+                <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Sell</span><span>Hold</span><span>Buy</span></div>
+              </div>
+            ) : (
+              <p role="status" className="mt-4 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                No Buy or Sell call. {series?.metrics ? "In testing, this model could not predict direction better than assuming no change." : "Direction is not verified yet."}
+              </p>
+            )}
           </div>
           {sig && (
             <>
               <dl className="font-num text-sm space-y-2.5">
-                <Row k={`Expected, ${horizon}d`} v={`${sig.exp >= 0 ? "+" : ""}${(sig.exp * 100).toFixed(1)}%`} tone={sig.exp >= 0 ? "up" : "down"} />
+                {series?.metrics && <Row k="Typical daily move" v={`${series.metrics.daily_vol_pct.toFixed(1)}%`} />}
                 <Row k="RSI (14)" v={sig.rsi.toFixed(0)} />
                 <Row k="52-week range" v={`${inr(Math.min(...series!.candles.slice(-250).map((c) => c.low)), 0)} – ${inr(Math.max(...series!.candles.slice(-250).map((c) => c.high)), 0)}`} />
               </dl>
-              <ul className="space-y-1.5 border-t border-border pt-4 text-[13px] text-muted-foreground">
-                {sig.why.map((w) => <li key={w}>{w}</li>)}
-              </ul>
+              {edge && (
+                <ul className="space-y-1.5 border-t border-border pt-4 text-[13px] text-muted-foreground">
+                  {sig.why.map((w) => <li key={w}>{w}</li>)}
+                </ul>
+              )}
             </>
           )}
           <p className="text-[11px] leading-snug text-muted-foreground">Not investment advice. {series && !series.live && (series.metrics ? "Forecast is an ML model trained on synthetic prices." : "Forecast here is a statistical placeholder.")}</p>
@@ -143,7 +161,8 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: "up" | "down" }) {
 
 const WATCH = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "MARUTI"];
 function Watchlist({ onPick, active }: { onPick: (t: string) => void; active: string }) {
-  const rows = React.useMemo(() => WATCH.map(demoQuote), []);
+  const api = useQuotes(WATCH);
+  const rows = React.useMemo(() => api ?? WATCH.map(demoQuote), [api]);
   return (
     <div>
       <h2 className="font-display text-lg font-semibold mb-3">Watchlist</h2>
@@ -180,7 +199,8 @@ function Watchlist({ onPick, active }: { onPick: (t: string) => void; active: st
 }
 
 function Heat({ onPick }: { onPick: (t: string) => void }) {
-  const q = React.useMemo(() => Object.fromEntries(ALL_TICKERS.map((t) => [t, demoQuote(t).chg])), []);
+  const api = useQuotes(ALL_TICKERS);
+  const q = React.useMemo(() => Object.fromEntries(ALL_TICKERS.map((t) => [t, api?.find((x) => x.ticker === t)?.chg ?? demoQuote(t).chg])), [api]);
   const tone = (c: number) => {
     const a = Math.min(Math.abs(c) / 3, 1) * 0.55 + 0.1;
     return c >= 0 ? `rgba(69,191,166,${a})` : `rgba(238,113,103,${a})`;
