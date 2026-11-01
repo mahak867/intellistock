@@ -132,7 +132,7 @@ def create_app() -> FastAPI:
     # defaults to an empty list — meaning every deployment that didn't
     # explicitly set it (including this project's own default config) was
     # silently exposed. Fail closed in production instead.
-    cors_origins = [str(o) for o in settings.ALLOWED_ORIGINS]
+    cors_origins = [str(o).rstrip("/") for o in settings.ALLOWED_ORIGINS]
     if not cors_origins:
         if settings.is_development:
             cors_origins = [
@@ -232,6 +232,11 @@ def create_app() -> FastAPI:
     app.include_router(
         predictions.router, prefix=f"{API_V1}/predictions", tags=["Predictions"]
     )
+
+    if settings.is_development:
+        from backend.api.routes import demo
+
+        app.include_router(demo.router, prefix=f"{API_V1}/demo", tags=["Demo (dev only)"])
 
     return app
 
