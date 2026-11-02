@@ -233,6 +233,10 @@ def create_app() -> FastAPI:
         predictions.router, prefix=f"{API_V1}/predictions", tags=["Predictions"]
     )
 
+    from backend.api.routes import tools
+
+    app.include_router(tools.router, prefix=f"{API_V1}/tools", tags=["Tools"])
+
     if settings.is_development:
         from backend.api.routes import demo
 

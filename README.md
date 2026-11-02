@@ -307,3 +307,19 @@ MIT License — see [LICENSE](LICENSE) for details.
 Built as part of B.Tech Computer Science curriculum — designed to production standards for real-world deployment.
 
 > *"The goal was not to build a student project. The goal was to build something that could run in production."*
+
+## Trader and investor tools
+
+`backend/tools/` holds pure-Python calculators (no database), exposed under `/api/v1/tools/*` and used by the **Tools** page in `frontend-react`. Run `pytest backend/tests` to test them.
+
+| Trader | Investor |
+| --- | --- |
+| position size and stop, trade costs, trade journal, option price/Greeks, payoff builder, OI and max pain, daily loss limit, pre-trade checklist, expiry dates, screener, backtester | portfolio allocation, portfolio risk, XIRR, SIP and goal planner, rebalancing, quality score, announcement digest, capital gains estimate |
+
+Also in the library but not yet wired to the UI: alert rules with Telegram/WhatsApp senders (`alerts.py`, needs your bot tokens) and a factor ranker (`factors.py`, only worth using if it passes its own out-of-sample test on real data).
+
+Be aware of the limits:
+- The screener, backtester and portfolio risk pages run on **placeholder prices** (`/api/v1/demo/*`, development mode only) until a market data feed is connected.
+- Exchange charges and brokerage are approximate. Margin for sold options is not estimated (use your broker's SPAN calculator).
+- The capital gains view is an estimate for listed-equity delivery trades. Have a chartered accountant confirm before filing.
+- Nothing here predicts prices. Where the forecast model has no proven edge, the app shows a likely range only.

@@ -184,3 +184,15 @@ class TestRunBacktestIntegration:
         # Long-only: equity should never exceed a simple bound driven by
         # staying flat (no negative-equity blowups from an accidental short).
         assert min(result.strategy_equity) > 0
+
+
+def test_walk_forward_reports_real_exposure_and_trades():
+    import numpy as np
+    import pandas as pd
+
+    from backend.tools import backtest as BT
+
+    rng = np.random.default_rng(1)
+    c = pd.Series(100 * np.exp(np.cumsum(rng.normal(0, 0.01, 1200))), index=pd.bdate_range("2020-01-01", periods=1200))
+    m = BT.walk_forward(c, BT.sma_signal, [{"fast": 5, "slow": 20}, {"fast": 20, "slow": 100}])["metrics"]
+    assert 0 < m["time_in_market"] < 1 and m["trades"] > 0

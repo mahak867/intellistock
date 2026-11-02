@@ -3,13 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, LineChart, History, Settings, LogOut, Briefcase } from "lucide-react";
+import { LayoutDashboard, LineChart, History, Settings, LogOut, Briefcase, Calculator } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", label: "Terminal", icon: LayoutDashboard },
   { href: "/predictions", label: "Predictions", icon: LineChart },
+  { href: "/tools", label: "Tools", icon: Calculator },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/backtesting", label: "Backtesting", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
