@@ -113,7 +113,7 @@ function PredictionsInner() {
               <p className="border-t border-border pt-3 text-xs text-muted-foreground">
                 {series.live
                   ? "The band is the model's own interval from the API."
-                  : series.source === "nse"
+                  : (series.source === "nse" || series.source === "local")
                     ? `Trained and tested on NSE end-of-day prices (as of ${series.asOf}), split-adjusted, dividends not added back. The test numbers above are out-of-sample.`
                     : "Placeholder prices: this shows how the model is tested, not how it performs on real stocks."}
                 {series.issues && series.issues.length > 0 && <span className="mt-1 block text-warning">Data notes: {series.issues.slice(0, 3).join("; ")}</span>}

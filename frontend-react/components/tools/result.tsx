@@ -115,16 +115,17 @@ export function LineSvg({ series, zero, xfmt, height = 220 }: { series: Series[]
   );
 }
 
-/** Says where the prices came from. Real data shows its date and any data-quality notes. */
-export function SourceBanner({ data }: { data: { synthetic?: boolean; as_of?: string; market_proxy?: string; quality?: { issues?: string[]; corporate_actions_adjusted?: unknown[] } | null } }) {
+/** Says where the prices came from. Real data shows its date, what was adjusted, and any data-quality notes. */
+export function SourceBanner({ data }: { data: { synthetic?: boolean; source?: string; as_of?: string; market_proxy?: string; quality?: { issues?: string[]; adjusted_for?: string } | null } }) {
   const notes = data.quality?.issues ?? [];
-  const adj = data.quality?.corporate_actions_adjusted?.length ?? 0;
+  const fixture = data.source === "fixture";
+  const where = data.source === "local" ? "Local data store (licensed vendor files)" : "NSE end-of-day prices";
   return (
     <div className={cn("rounded-lg border px-3 py-2 text-xs", data.synthetic ? "border-warning/50 bg-warning/10 text-warning" : "border-border bg-muted/30 text-muted-foreground")}>
       {data.synthetic
-        ? "Placeholder prices, not market data. The structure is real; the numbers are not. Load NSE data to make them real."
-        : `NSE end-of-day prices as of ${data.as_of}. Split and bonus adjusted${adj ? ` (${adj} adjustment${adj > 1 ? "s" : ""} applied)` : ""}; dividends not added back.`}
-      {data.market_proxy && !data.synthetic && <span className="block">Market stand-in for betas: {data.market_proxy}.</span>}
+        ? fixture ? "Test fixture: synthetic prices in NSE file layout. Not market data." : "Placeholder prices, not market data. The structure is real; the numbers are not. Load NSE data to make them real."
+        : `${where} as of ${data.as_of}.${data.quality?.adjusted_for ? ` Adjusted for ${data.quality.adjusted_for}.` : ""}`}
+      {data.market_proxy && !data.synthetic && <span className="block">Market used for betas: {data.market_proxy}.</span>}
       {notes.slice(0, 3).map((n) => <span key={n} className="block">Note: {n}</span>)}
     </div>
   );

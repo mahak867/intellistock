@@ -7,6 +7,7 @@ from typing import Callable
 
 import pandas as pd
 
+from backend.data import indices
 from backend.data.bhavcopy import StaleFile, download_day
 
 STORE = "prices.csv.gz"
@@ -22,9 +23,10 @@ def weekdays(start: date, end: date):
 
 
 def fetch_range(start: date, end: date, cache_dir: Path, client, delay: float = 2.0,
-                progress: Callable[[str], None] = lambda s: None) -> dict:
-    """Download every missing weekday, then rebuild the store from all cached raw files."""
+                progress: Callable[[str], None] = lambda s: None, with_indices: bool = True) -> dict:
+    """Download every missing weekday (plus that day's index file), then rebuild the store from all cached raw files."""
     got, none, stale, failed = 0, 0, 0, []
+    idx_days = 0
     for d in weekdays(start, end):
         try:
             df = download_day(d, client, cache_dir, delay)
@@ -38,8 +40,15 @@ def fetch_range(start: date, end: date, cache_dir: Path, client, delay: float = 
             continue
         got, none = (got + 1, none) if df is not None else (got, none + 1)
         progress(f"{d} {'ok' if df is not None else 'no file'}")
+        if df is not None and with_indices:
+            try:
+                if indices.download_index_day(d, client, cache_dir, delay) is not None:
+                    idx_days += 1
+            except Exception as e:  # indices are optional: note it and carry on
+                failed.append(f"{d} index file: {e}")
     n = rebuild(cache_dir)
-    return {"downloaded_or_cached_days": got, "no_file_days": none, "stale_days": stale, "failed": failed, "store_rows": n}
+    return {"downloaded_or_cached_days": got, "no_file_days": none, "stale_days": stale, "failed": failed, "store_rows": n,
+            "index_days": idx_days, "index_rows": indices.rebuild_indices(cache_dir) if with_indices else 0}
 
 
 def rebuild(cache_dir: Path) -> int:

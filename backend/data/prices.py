@@ -17,8 +17,11 @@ def _pick_series(g: pd.DataFrame) -> pd.DataFrame:
     return g.sort_values(["date", "_r"]).drop_duplicates("date", keep="first").drop(columns="_r").set_index("date")
 
 
-def build_ohlcv(rows: pd.DataFrame, symbol: str, adjust: bool = True, today: date | None = None) -> tuple[pd.DataFrame, dict]:
-    """rows: long frame from the store. Returns (ohlcv, quality). Raises KeyError if the symbol is unknown."""
+def build_ohlcv(rows: pd.DataFrame, symbol: str, adjust: bool = True, today: date | None = None,
+                dividends: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict]:
+    """rows: long frame from the store. Returns (ohlcv, quality). Raises KeyError if the symbol is unknown.
+    With `dividends` (symbol, ex_date, amount) the series becomes total-return: earlier prices are scaled down so a
+    dividend is not read as a price drop. Splits and dividends are both multiplicative, so the order does not matter."""
     g = rows[rows["symbol"] == symbol]
     if g.empty:
         raise KeyError(symbol)
@@ -39,7 +42,8 @@ def build_ohlcv(rows: pd.DataFrame, symbol: str, adjust: bool = True, today: dat
     if sym_missing:
         issues.append(f"{sym_missing} trading days missing for this stock (suspension, or a failed download)")
 
-    actions = []
+    actions: list[dict] = []
+    div_applied: list[str] = []
     if adjust and len(d) > 1:
         prev_close_ours = d["close"].shift(1)
         ratio = (d["prev_close"] / prev_close_ours).replace([np.inf, -np.inf], np.nan)
@@ -54,11 +58,32 @@ def build_ohlcv(rows: pd.DataFrame, symbol: str, adjust: bool = True, today: dat
                 issues.append(f"{t.date()}: previous close differs by {abs(r - 1):.1%} but {gap_days} day(s) are missing, so it was NOT adjusted")
                 continue
             actions.append({"date": str(t.date()), "factor": float(r)})
+        div_applied, div_skipped = [], []
+        if dividends is not None and len(dividends):
+            ca = {a["date"]: a["factor"] for a in actions}
+            for _, dv in dividends[dividends["symbol"] == symbol].iterrows():
+                ex = dv["ex_date"]
+                if ex <= d.index[0] or ex > d.index[-1]:
+                    continue
+                ex_day = d.index[d.index.searchsorted(ex)]  # first trading day on or after the ex-date
+                prev_px = d["close"].iloc[d.index.get_loc(ex_day) - 1]  # raw close the day before: same units as the dividend
+                f = 1.0 - dv["amount"] / prev_px
+                if not 0.2 < f < 1.0:
+                    div_skipped.append(f"{ex.date()}: dividend {dv['amount']} against price {prev_px:.2f} looks wrong, skipped")
+                    continue
+                seen = ca.get(str(ex_day.date()))
+                if seen is not None and abs(seen - f) < 0.01:
+                    div_skipped.append(f"{ex.date()}: the exchange already adjusted its previous close for this dividend, not counted twice")
+                    continue
+                actions.append({"date": str(ex_day.date()), "factor": float(f), "kind": "dividend"})
+                div_applied.append(str(ex_day.date()))
+            issues.extend(div_skipped)
         for a in sorted(actions, key=lambda x: x["date"], reverse=True):
             cut = pd.Timestamp(a["date"])
             m = d.index < cut
             d.loc[m, ["open", "high", "low", "close"]] *= a["factor"]
-            d.loc[m, "volume"] /= a["factor"]
+            if a.get("kind") != "dividend":
+                d.loc[m, "volume"] /= a["factor"]
 
     out = d[["open", "high", "low", "close", "volume"]].astype(float)
     last = out.index[-1].date()
@@ -68,6 +93,8 @@ def build_ohlcv(rows: pd.DataFrame, symbol: str, adjust: bool = True, today: dat
     if (out["volume"] == 0).mean() > 0.05:
         issues.append("many zero-volume days: thinly traded")
     q = {"symbol": symbol, "rows": int(len(out)), "first": str(out.index[0].date()), "last": str(last), "stale_days": int(stale),
-         "series": series_seen, "corporate_actions_adjusted": actions, "issues": issues,
-         "adjusted_for": "splits, bonus and any other change the exchange made to its previous close; dividends are NOT added back"}
+         "series": series_seen, "corporate_actions_adjusted": [a for a in actions if a.get("kind") != "dividend"], "issues": issues,
+         "dividends_applied": len(div_applied), "total_return": bool(div_applied),
+         "adjusted_for": ("splits, bonus and the exchange's own previous-close changes" +
+                          (f", plus {len(div_applied)} cash dividends (total return)" if div_applied else "; no dividend file loaded, so dividends are NOT added back"))}
     return out, q

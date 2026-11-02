@@ -12,13 +12,15 @@ export type MlMetrics = {
   vol_mae_log: number; vol_naive_mae_log: number; vol_beats_naive: boolean;
   band_coverage_80: number; band_width_pct: number; daily_vol_pct: number;
 };
-export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics; source?: "synthetic" | "nse"; asOf?: string; issues?: string[] };
+export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics; source?: "synthetic" | "fixture" | "nse" | "local"; asOf?: string; issues?: string[] };
 
 /** One honest sentence about where the prices on screen came from. */
 export function dataLabel(s: Series | null): string {
   if (!s) return "";
   if (s.live) return "live data";
   if (s.source === "nse") return `NSE end-of-day prices, as of ${s.asOf}`;
+  if (s.source === "local") return `local data store, as of ${s.asOf}`;
+  if (s.source === "fixture") return "test fixture, synthetic prices in NSE layout";
   return "placeholder prices, not market data";
 }
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1");

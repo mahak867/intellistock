@@ -124,7 +124,7 @@ export default function DashboardPage() {
               )}
             </>
           )}
-          <p className="text-[11px] leading-snug text-muted-foreground">Not investment advice. {series && !series.live && (series.source === "nse" ? "Forecast is a range model tested out of sample on NSE end-of-day prices." : series.metrics ? "Forecast is an ML model trained on placeholder prices." : "Forecast here is a statistical placeholder.")}</p>
+          <p className="text-[11px] leading-snug text-muted-foreground">Not investment advice. {series && !series.live && ((series.source === "nse" || series.source === "local") ? "Forecast is a range model tested out of sample on NSE end-of-day prices." : series.metrics ? "Forecast is an ML model trained on placeholder prices." : "Forecast here is a statistical placeholder.")}</p>
         </aside>
       </section>
 

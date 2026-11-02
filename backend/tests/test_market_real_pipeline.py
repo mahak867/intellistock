@@ -66,5 +66,5 @@ def test_forecast_screener_backtest_and_risk_use_real_source(c):
 
 def test_unknown_symbol_is_404_not_fake_data(c):
     r = c.get(f"{M}/forecast/NOSUCH")
-    assert r.status_code == 404 and "No NSE data" in r.json()["detail"]
+    assert r.status_code == 404 and "No data for NOSUCH" in r.json()["detail"]
     assert c.get(f"{M}/quotes?tickers=TCS,NOSUCH").json()[0]["ticker"] == "TCS"

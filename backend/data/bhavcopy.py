@@ -19,7 +19,33 @@ import pandas as pd
 
 URL = "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{d:%Y%m%d}_F_0000.csv.zip"
 DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-REQUIRED = ["TradDt", "TckrSymb", "SctySrs", "OpnPric", "HghPric", "LwPric", "ClsPric", "PrvsClsgPric", "TtlTradgVol"]
+# Canonical field -> names it has gone by. UDiFF is the current layout; the others are NSE's older layouts,
+# accepted so a changed or older file still loads instead of failing on a name.
+ALIASES = {
+    "date": ["TradDt", "TIMESTAMP", "DATE1", "Date"],
+    "symbol": ["TckrSymb", "SYMBOL", "Symbol"],
+    "series": ["SctySrs", "SERIES", "Series"],
+    "open": ["OpnPric", "OPEN", "OPEN_PRICE", "Open"],
+    "high": ["HghPric", "HIGH", "HIGH_PRICE", "High"],
+    "low": ["LwPric", "LOW", "LOW_PRICE", "Low"],
+    "close": ["ClsPric", "CLOSE", "CLOSE_PRICE", "Close"],
+    "prev_close": ["PrvsClsgPric", "PREVCLOSE", "PREV_CLOSE", "PrevClose"],
+    "volume": ["TtlTradgVol", "TOTTRDQTY", "TTL_TRD_QNTY", "Volume"],
+}
+REQUIRED = [a[0] for a in ALIASES.values()]  # the current-layout name of each field, used in error messages
+
+
+def resolve_columns(cols) -> tuple[dict[str, str], list[str]]:
+    """Map canonical field -> actual column name (case/space-insensitive). Returns (mapping, missing fields)."""
+    norm = {str(c).strip().lower(): c for c in cols}
+    found, missing = {}, []
+    for field, names in ALIASES.items():
+        hit = next((norm[n.lower()] for n in names if n.lower() in norm), None)
+        if hit is None:
+            missing.append(field)
+        else:
+            found[field] = hit
+    return found, missing
 
 
 class StaleFile(ValueError):
@@ -36,17 +62,17 @@ def parse_udiff(raw: bytes, expect: date | None = None) -> pd.DataFrame:
             raw = z.read(name)
     df = pd.read_csv(io.BytesIO(raw), dtype=str, skipinitialspace=True)
     df.columns = [c.strip() for c in df.columns]
-    missing = [c for c in REQUIRED if c not in df.columns]
+    m, missing = resolve_columns(df.columns)
     if missing:
-        raise ValueError(f"unexpected file layout, missing columns {missing}. Found: {list(df.columns)[:12]}")
+        raise ValueError(f"unexpected file layout: cannot find {missing}. Columns present: {list(df.columns)[:14]}")
     for c in df.columns:
         df[c] = df[c].str.strip()
     out = pd.DataFrame({
-        "date": pd.to_datetime(df["TradDt"], errors="coerce"),
-        "symbol": df["TckrSymb"], "series": df["SctySrs"],
-        "open": pd.to_numeric(df["OpnPric"], errors="coerce"), "high": pd.to_numeric(df["HghPric"], errors="coerce"),
-        "low": pd.to_numeric(df["LwPric"], errors="coerce"), "close": pd.to_numeric(df["ClsPric"], errors="coerce"),
-        "prev_close": pd.to_numeric(df["PrvsClsgPric"], errors="coerce"), "volume": pd.to_numeric(df["TtlTradgVol"], errors="coerce"),
+        "date": pd.to_datetime(df[m["date"]], errors="coerce", format="mixed", dayfirst=False),
+        "symbol": df[m["symbol"]], "series": df[m["series"]],
+        "open": pd.to_numeric(df[m["open"]], errors="coerce"), "high": pd.to_numeric(df[m["high"]], errors="coerce"),
+        "low": pd.to_numeric(df[m["low"]], errors="coerce"), "close": pd.to_numeric(df[m["close"]], errors="coerce"),
+        "prev_close": pd.to_numeric(df[m["prev_close"]], errors="coerce"), "volume": pd.to_numeric(df[m["volume"]], errors="coerce"),
     }).dropna(subset=["date", "symbol", "close"])
     if out.empty:
         raise ValueError("file parsed but holds no usable rows")

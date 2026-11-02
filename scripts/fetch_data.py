@@ -56,7 +56,16 @@ def main() -> int:
                 print("     note:", i)
         except KeyError:
             print(f"  {s}: not found")
-    print("\nNext: put DATA_PROVIDER=nse in .env and restart the API.")
+    from backend.data import dividends as dv
+    from backend.data import indices
+
+    idx = indices.load_indices(cache)
+    if idx is None:
+        print("Index data: none, so betas will use an average of liquid stocks. Run scripts/check_nse_format.py --kind index to see why.")
+    else:
+        print(f"Index data: {idx['index'].nunique()} indices, {idx['date'].min().date()} to {idx['date'].max().date()}")
+    print("Dividends:", "loaded" if dv.load_dividends(cache) is not None else f"no {cache / 'dividends.csv'} yet: prices will not include dividends. Format: symbol,ex_date,amount")
+    print("\nNext: python scripts/check_nse_format.py if anything above looks off; put DATA_PROVIDER=nse in .env and restart the API.")
     return 0
 
 

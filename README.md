@@ -324,17 +324,19 @@ Be aware of the limits:
 - The capital gains view is an estimate for listed-equity delivery trades. Have a chartered accountant confirm before filing.
 - Nothing here predicts prices. Where the forecast model has no proven edge, the app shows a likely range only.
 
-## Real market data (NSE end-of-day)
+## Real market data
 
 ```bash
-python scripts/fetch_data.py --years 3     # downloads NSE daily files into ./data (polite: 2 s between requests, cached, safe to re-run)
+python scripts/check_nse_format.py          # confirms NSE's current files match what the code expects (paste the output if it says FAIL)
+python scripts/fetch_data.py --years 3      # downloads NSE daily and index files into ./data (2 s between requests, cached, safe to re-run)
 # in .env:  DATA_PROVIDER=nse
+python scripts/capture_screens.py           # screenshots of every page; anything on placeholder or fixture data is renamed PLACEHOLDER-...
 ```
 
-Then restart the API. The script ends with a spot check of RELIANCE, TCS, HDFCBANK and INFY: compare their last close and any listed adjustments with a chart you trust before relying on anything.
+Then restart the API. `fetch_data.py` ends with a spot check of RELIANCE, TCS, HDFCBANK and INFY: compare their last close with a chart you trust.
 
-- Source: NSE's daily cash-market file (`BhavCopy_NSE_CM_0_0_0_YYYYMMDD_F_0000.csv.zip`). The format was checked against NSE's published file list and independent write-ups, not against a live download from the build environment, so the first run on your machine is the real test.
-- Prices are **end-of-day**, split and bonus adjusted using the exchange's own previous close. Dividends are not added back, so long-horizon returns are understated.
-- Each file's date is checked against the date requested, because NSE can serve the previous session's file. Raw files are kept unchanged in `data/raw`.
-- Betas for portfolio risk use the average of the most liquid stocks as the market, because index files are not loaded yet.
-- **Licence:** these files belong to NSE. Fine for your own research; selling or redistributing them inside a product needs an NSE or data-vendor licence. `data/` is git-ignored.
+- **Source:** NSE's daily cash-market file and index file. Layouts are matched by name against the current format and two older ones. The current layout was checked against NSE's published file list and independent write-ups, not a live download from the build environment, so `check_nse_format.py` on your machine is the real test.
+- **Adjustment:** splits and bonuses are adjusted using the exchange's own previous close. Put a `data/dividends.csv` next to the store (columns `symbol, ex_date, amount`, or an NSE corporate-actions export with a Purpose column like "Interim Dividend - Rs 5 Per Share") and prices become total-return; without it dividends are not added back, and every screen says which you have.
+- **Index:** Nifty 50 and India VIX come from NSE's index file. They feed portfolio-risk betas and the forecast model's market features. Without them, betas fall back to the average of the most liquid stocks and the page says so.
+- **Date check:** each file's date is checked against the date requested, because NSE can serve the previous session's file. Raw files are kept unchanged in `data/raw`.
+- **Licence:** NSE's files are NSE's data. Read [LICENSING.md](LICENSING.md). Production refuses to serve NSE files unless `NSE_DATA_LICENSED=true`, and licensed vendor data goes in with `scripts/import_vendor_csv.py` and `DATA_PROVIDER=local`.

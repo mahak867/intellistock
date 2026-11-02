@@ -88,7 +88,8 @@ class Settings(BaseSettings):
     DEFAULT_CURRENCY: str = "INR"
     MARKET_DATA_LOOKBACK_YEARS: int = 5
     YFINANCE_TIMEOUT: int = 30
-    DATA_PROVIDER: str = "synthetic"   # "synthetic" (placeholder prices) or "nse" (local store built by scripts/fetch_data.py)
+    DATA_PROVIDER: str = "synthetic"   # "synthetic" (placeholders) | "nse" (files you downloaded from NSE) | "local" (licensed vendor data)
+    NSE_DATA_LICENSED: bool = False    # set true only if you hold an NSE Data & Analytics agreement; otherwise production will not serve NSE files
     DATA_DIR: str = "./data"
 
     # ── Celery ──────────────────────────────────────────────────────────────

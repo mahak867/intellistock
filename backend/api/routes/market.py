@@ -26,8 +26,13 @@ from ml.forecast.quick_forecast import build_features, forecast
 
 
 def _gate():
-    if not settings.is_development and providers.provider_name() != "nse":
-        raise HTTPException(status_code=503, detail="No market data source is configured. Run scripts/fetch_data.py and set DATA_PROVIDER=nse.")
+    if settings.is_development:
+        return
+    if providers.provider_name() not in providers.STORE_PROVIDERS or providers.store_source() == "fixture":
+        raise HTTPException(status_code=503, detail="No real market data source is configured. Run scripts/fetch_data.py and set DATA_PROVIDER=nse (or local, for licensed vendor data).")
+    if not providers.licensed():
+        raise HTTPException(status_code=503, detail="NSE end-of-day files are NSE's data: serving them to users needs an NSE Data & Analytics agreement. "
+                            "Set NSE_DATA_LICENSED=true once you hold one, or load licensed vendor data with DATA_PROVIDER=local. See LICENSING.md.")
 
 
 router = APIRouter(dependencies=[Depends(_gate)] + ([] if settings.is_development else [Depends(get_current_user)]))
@@ -64,7 +69,7 @@ def status():
 @lru_cache(maxsize=256)
 def _forecast(t: str, horizon: int, ver: tuple) -> dict:
     p = providers.get_prices(t, 700)
-    res = forecast(p.df, horizon)
+    res = forecast(p.df, horizon, market=providers.market_frame(p.df.index))
     candles = [{"time": d.strftime("%Y-%m-%d"), "open": r.open, "high": r.high, "low": r.low, "close": r.close, "volume": int(r.volume)}
                for d, r in p.df.tail(260).iterrows()]
     return {"ticker": t, **_meta(p), "candles": candles, **res}
@@ -103,18 +108,18 @@ async def market_quotes(tickers: str = Query(..., max_length=600)):
 @lru_cache(maxsize=2)
 def _screen(ver: tuple) -> dict:
     names = providers.universe()
-    frames, asof, syn = {}, None, True
+    frames, asof, src, syn = {}, None, "synthetic", True
     for n in names:
         try:
             p = providers.get_prices(n, 400)
         except NoData:
             continue
-        frames[n], asof, syn = p.df, p.df.index[-1], p.synthetic
+        frames[n], asof, src, syn = p.df, p.df.index[-1], p.source, p.synthetic
     if not frames:
         raise NoData("No symbols with enough history. Fetch a longer range.")
     t = SC.build_table(frames)
     rows = t.reset_index(names="symbol").replace({np.nan: None}).to_dict("records")
-    return {"synthetic": syn, "source": "synthetic" if syn else "nse", "as_of": str(asof.date()), "universe": len(rows), "rows": rows}
+    return {"synthetic": syn, "source": src, "as_of": str(asof.date()), "universe": len(rows), "rows": rows}
 
 
 @router.get("/screener", summary="Rank the most liquid stocks by momentum, volatility and volume")
@@ -157,8 +162,11 @@ class PortfolioIn(BaseModel):
 @lru_cache(maxsize=4)
 def _proxy_returns(ver: tuple) -> tuple[pd.Series, str]:
     """Market stand-in for betas: NSE index files are not in the store, so use the average of the most liquid stocks."""
-    if providers.provider_name() != "nse":
+    if providers.provider_name() not in providers.STORE_PROVIDERS:
         return providers.get_prices("NIFTY", 700).df["close"].pct_change().dropna(), "synthetic index"
+    nifty = providers.index_series("NIFTY 50")
+    if nifty is not None:
+        return nifty.pct_change().dropna(), "Nifty 50 index"
     rets = {}
     for n in providers.universe(30):
         try:
@@ -184,8 +192,9 @@ async def market_portfolio_risk(b: PortfolioIn):
         v = alloc["total_value"]
         proxy, proxy_name = _proxy_returns(_ver())
         beta = PR.betas(rets, proxy.reindex(rets.index).dropna())
-        syn = providers.provider_name() != "nse"
-        return {"synthetic": syn, "source": "synthetic" if syn else "nse", "as_of": str(px.index[-1].date()), "market_proxy": proxy_name,
+        src = providers.store_source() if providers.provider_name() in providers.STORE_PROVIDERS else "synthetic"
+        syn = src in ("synthetic", "fixture")
+        return {"synthetic": syn, "source": src, "as_of": str(px.index[-1].date()), "market_proxy": proxy_name,
                 "allocation": alloc, "correlation": PF.correlation(rets),
                 "week": {"parametric": PR.parametric_range(w, cov, v, 5), "historical": PR.historical_range(port, v, 5)},
                 "month": {"parametric": PR.parametric_range(w, cov, v, 21), "historical": PR.historical_range(port, v, 21)},

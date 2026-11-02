@@ -39,7 +39,7 @@ def test_parse_rejects_wrong_day_and_bad_layout():
     raw = udiff("2026-10-30", [("TCS", "EQ", 100, 105, 99, 104, 100, 5000)])
     with pytest.raises(StaleFile):
         parse_udiff(raw, date(2026, 10, 31))
-    with pytest.raises(ValueError, match="missing columns"):
+    with pytest.raises(ValueError, match="unexpected file layout"):
         parse_udiff(b"a,b\n1,2")
 
 
@@ -138,7 +138,7 @@ def test_fetch_range_builds_store_and_provider_reads_it(tmp_path, monkeypatch):
     assert st["real_data"] is True and st["symbols"] == 1 and st["last"] == "2026-10-09"
     with pytest.raises(providers.NoData, match="Only 5 days"):
         providers.get_prices("TCS")
-    with pytest.raises(providers.NoData, match="No NSE data"):
+    with pytest.raises(providers.NoData, match="No data for ZZZ"):
         providers.get_prices("ZZZ")
 
 
