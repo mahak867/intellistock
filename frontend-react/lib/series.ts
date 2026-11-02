@@ -12,7 +12,15 @@ export type MlMetrics = {
   vol_mae_log: number; vol_naive_mae_log: number; vol_beats_naive: boolean;
   band_coverage_80: number; band_width_pct: number; daily_vol_pct: number;
 };
-export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics };
+export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics; source?: "synthetic" | "nse"; asOf?: string; issues?: string[] };
+
+/** One honest sentence about where the prices on screen came from. */
+export function dataLabel(s: Series | null): string {
+  if (!s) return "";
+  if (s.live) return "live data";
+  if (s.source === "nse") return `NSE end-of-day prices, as of ${s.asOf}`;
+  return "placeholder prices, not market data";
+}
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1");
 
 export function useSeries(ticker: string, horizon: number): Series | null {
@@ -33,10 +41,10 @@ export function useSeries(ticker: string, horizon: number): Series | null {
         } catch { /* fall through to demo data */ }
       }
       try {
-        const r = await fetch(`${API_ORIGIN}/demo/forecast/${encodeURIComponent(ticker)}?horizon=${horizon}`);
+        const r = await fetch(`${API_ORIGIN}/market/forecast/${encodeURIComponent(ticker)}?horizon=${horizon}`);
         if (r.ok) {
           const d = await r.json();
-          if (!off) return setS({ candles: d.candles, fan: d.fan, live: false, metrics: d.metrics });
+          if (!off) return setS({ candles: d.candles, fan: d.fan, live: false, metrics: d.metrics, source: d.source, asOf: d.as_of, issues: d.quality?.issues });
           return;
         }
       } catch { /* API offline: fall back to the in-browser placeholder */ }
@@ -75,7 +83,7 @@ export function useQuotes(tickers: string[]): Quote[] | null {
   const [q, setQ] = React.useState<Quote[] | null>(null);
   React.useEffect(() => {
     let off = false;
-    fetch(`${API_ORIGIN}/demo/quotes?tickers=${encodeURIComponent(key)}`)
+    fetch(`${API_ORIGIN}/market/quotes?tickers=${encodeURIComponent(key)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!off) setQ(d); })
       .catch(() => { if (!off) setQ(null); });

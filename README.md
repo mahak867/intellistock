@@ -319,7 +319,22 @@ Built as part of B.Tech Computer Science curriculum — designed to production s
 Also in the library but not yet wired to the UI: alert rules with Telegram/WhatsApp senders (`alerts.py`, needs your bot tokens) and a factor ranker (`factors.py`, only worth using if it passes its own out-of-sample test on real data).
 
 Be aware of the limits:
-- The screener, backtester and portfolio risk pages run on **placeholder prices** (`/api/v1/demo/*`, development mode only) until a market data feed is connected.
+- The screener, backtester, portfolio risk and forecast pages use **placeholder prices** until you load real data (below). Every response and screen says which one you are looking at, and outside development the API refuses to serve placeholders.
 - Exchange charges and brokerage are approximate. Margin for sold options is not estimated (use your broker's SPAN calculator).
 - The capital gains view is an estimate for listed-equity delivery trades. Have a chartered accountant confirm before filing.
 - Nothing here predicts prices. Where the forecast model has no proven edge, the app shows a likely range only.
+
+## Real market data (NSE end-of-day)
+
+```bash
+python scripts/fetch_data.py --years 3     # downloads NSE daily files into ./data (polite: 2 s between requests, cached, safe to re-run)
+# in .env:  DATA_PROVIDER=nse
+```
+
+Then restart the API. The script ends with a spot check of RELIANCE, TCS, HDFCBANK and INFY: compare their last close and any listed adjustments with a chart you trust before relying on anything.
+
+- Source: NSE's daily cash-market file (`BhavCopy_NSE_CM_0_0_0_YYYYMMDD_F_0000.csv.zip`). The format was checked against NSE's published file list and independent write-ups, not against a live download from the build environment, so the first run on your machine is the real test.
+- Prices are **end-of-day**, split and bonus adjusted using the exchange's own previous close. Dividends are not added back, so long-horizon returns are understated.
+- Each file's date is checked against the date requested, because NSE can serve the previous session's file. Raw files are kept unchanged in `data/raw`.
+- Betas for portfolio risk use the average of the most liquid stocks as the market, because index files are not loaded yet.
+- **Licence:** these files belong to NSE. Fine for your own research; selling or redistributing them inside a product needs an NSE or data-vendor licence. `data/` is git-ignored.

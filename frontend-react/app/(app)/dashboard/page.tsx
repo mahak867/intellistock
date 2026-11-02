@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { useSeries, useQuotes, readSignal } from "@/lib/series";
+import { useSeries, useQuotes, readSignal, dataLabel } from "@/lib/series";
 import { ALL_TICKERS, SECTORS, demoQuote } from "@/lib/demo";
 import { PriceChart, type Hover } from "@/components/terminal/price-chart";
 import { Sparkline } from "@/components/terminal/sparkline";
@@ -41,7 +41,7 @@ export default function DashboardPage() {
             >
               {ALL_TICKERS.map((t) => <option key={t} value={t} className="bg-card text-base font-sans">{t}</option>)}
             </select>
-            <p className="text-xs text-muted-foreground mt-0.5">NSE · daily · {series?.live ? "model forecast" : "Demo data, synthetic"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">NSE · daily · {series?.live ? "model forecast" : dataLabel(series)}</p>
           </div>
           {last && (
             <div className="font-num pb-1">
@@ -124,12 +124,12 @@ export default function DashboardPage() {
               )}
             </>
           )}
-          <p className="text-[11px] leading-snug text-muted-foreground">Not investment advice. {series && !series.live && (series.metrics ? "Forecast is an ML model trained on synthetic prices." : "Forecast here is a statistical placeholder.")}</p>
+          <p className="text-[11px] leading-snug text-muted-foreground">Not investment advice. {series && !series.live && (series.source === "nse" ? "Forecast is a range model tested out of sample on NSE end-of-day prices." : series.metrics ? "Forecast is an ML model trained on placeholder prices." : "Forecast here is a statistical placeholder.")}</p>
         </aside>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Watchlist onPick={setTicker} active={ticker} />
+        <Watchlist label={dataLabel(series)} onPick={setTicker} active={ticker} />
         <Heat onPick={setTicker} />
       </section>
     </div>
@@ -160,7 +160,7 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: "up" | "down" }) {
 }
 
 const WATCH = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "MARUTI"];
-function Watchlist({ onPick, active }: { onPick: (t: string) => void; active: string }) {
+function Watchlist({ onPick, active, label }: { onPick: (t: string) => void; active: string; label: string }) {
   const api = useQuotes(WATCH);
   const rows = React.useMemo(() => api ?? WATCH.map(demoQuote), [api]);
   return (
@@ -193,7 +193,7 @@ function Watchlist({ onPick, active }: { onPick: (t: string) => void; active: st
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Quotes are demo data until the API serves live prices.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Prices: {label || "loading"}.</p>
     </div>
   );
 }

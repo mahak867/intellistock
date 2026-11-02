@@ -237,10 +237,9 @@ def create_app() -> FastAPI:
 
     app.include_router(tools.router, prefix=f"{API_V1}/tools", tags=["Tools"])
 
-    if settings.is_development:
-        from backend.api.routes import demo
+    from backend.api.routes import market
 
-        app.include_router(demo.router, prefix=f"{API_V1}/demo", tags=["Demo (dev only)"])
+    app.include_router(market.router, prefix=f"{API_V1}/market", tags=["Market data"])
 
     return app
 

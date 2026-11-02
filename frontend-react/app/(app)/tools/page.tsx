@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useAuth } from "@/lib/auth-context";
 import { TOOLS, type Tool } from "@/lib/tools";
-import { Generic, LineSvg, Stat, Table, fmt } from "@/components/tools/result";
+import { Generic, LineSvg, SourceBanner, Stat, Table } from "@/components/tools/result";
 import { cn } from "@/lib/utils";
 
 const API = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1";
@@ -55,7 +55,7 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
     const w = data.walk_forward_out_of_sample, ins = data.in_sample, h = data.buy_and_hold, d = data.worst_case_drawdown;
     return (
       <div className="space-y-5">
-        <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">Placeholder prices for {data.ticker}, not market data. Use this page to learn what the numbers mean; connect a data feed before trusting any result.</p>
+        <SourceBanner data={data} />
         <LineSvg series={[
           { name: "Strategy, full history (in-sample)", color: "var(--primary)", pts: eq.map((p, i) => [i, p.strategy]) },
           { name: "Buy and hold", color: "var(--muted-foreground)", pts: eq.map((p, i) => [i, p.hold]) },
@@ -80,12 +80,12 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
       </div>
     );
   }
-  if (tool.view === "screener") return <Screener rows={data} />;
+  if (tool.view === "screener") return <Screener data={data} />;
   if (tool.view === "portrisk") {
     const a = data.allocation, m = Object.keys(data.correlation.matrix);
     return (
       <div className="space-y-5">
-        <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">Placeholder prices, not market data. The structure is real; the rupee numbers are not.</p>
+        <SourceBanner data={data} />
         <div className="grid gap-3 sm:grid-cols-2">
           {(["week", "month"] as const).map((k) => (
             <div key={k} className="rounded-xl border border-border bg-card/60 p-4">
@@ -113,13 +113,15 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
   return <Generic data={data} />;
 }
 
-function Screener({ rows }: { rows: Record<string, unknown>[] }) {
+function Screener({ data }: { data: { rows: Record<string, unknown>[]; synthetic: boolean; as_of: string; universe: number } }) {
+  const rows = data.rows;
   const [f, setF] = React.useState<"all" | "mom" | "quiet" | "spike">("all");
   const filtered = rows.filter((r) => f === "all" || (f === "mom" && (r.mom_rank as number) >= 0.8) || (f === "quiet" && (r.vol_pct_rank as number) <= 0.2) || (f === "spike" && (r.volume_spike as number) >= 1.5));
   const shown = [...filtered].sort((a, b) => ((b.mom_rank as number) ?? 0) - ((a.mom_rank as number) ?? 0));
   return (
     <div className="space-y-3">
-      <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">Placeholder prices, not market data.</p>
+      <SourceBanner data={data} />
+      <p className="text-xs text-muted-foreground">{data.universe} most liquid stocks. Rank columns run 0 to 1 (1 = strongest).</p>
       <div role="group" aria-label="Filter" className="flex flex-wrap gap-1.5 text-xs">
         {([["all", "All"], ["mom", "Top momentum"], ["quiet", "Unusually quiet"], ["spike", "Volume spike"]] as const).map(([k, l]) => (
           <button key={k} aria-pressed={f === k} onClick={() => setF(k)} className={cn("rounded-md border px-2.5 py-1.5 font-medium transition-colors", f === k ? "border-primary/50 bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground")}>{l}</button>

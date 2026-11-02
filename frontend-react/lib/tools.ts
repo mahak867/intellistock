@@ -111,19 +111,19 @@ export const TOOLS: Tool[] = [
     build: (v) => ({ year: num(v.year), month: num(v.month), exchange: v.ex, holidays: lines(v.hol) }),
   },
   {
-    id: "screen", group: "Trader", title: "Screener", method: "GET", path: "/demo/screener", demoData: true, view: "screener",
-    blurb: "Rank a universe by momentum, volatility, 52-week position and volume spikes. Runs on placeholder prices until a market data feed is connected.",
+    id: "screen", group: "Trader", title: "Screener", method: "GET", path: "/market/screener", demoData: true, view: "screener",
+    blurb: "Rank a universe by momentum, volatility, 52-week position and volume spikes. Uses your local NSE data when loaded; otherwise placeholder prices, clearly labelled.",
     fields: [], build: () => null,
   },
   {
-    id: "bt", group: "Trader", title: "Backtester", method: "GET", path: "/demo/backtest", demoData: true, view: "backtest",
+    id: "bt", group: "Trader", title: "Backtester", method: "GET", path: "/market/backtest", demoData: true, view: "backtest",
     blurb: "Moving-average crossover with Indian-style costs and slippage, then walk-forward out-of-sample results and a worst-case drawdown simulation. The out-of-sample line is the one to believe.",
     fields: [
       { name: "ticker", label: "Ticker", type: "text", def: "TCS" },
       { name: "cost", label: "Cost, bps per trade", type: "number", def: "10" },
       { name: "slip", label: "Slippage, bps", type: "number", def: "5" },
     ],
-    pathFor: (v) => `/demo/backtest/${encodeURIComponent(v.ticker.trim() || "TCS")}?cost_bps=${v.cost || 10}&slippage_bps=${v.slip || 5}`,
+    pathFor: (v) => `/market/backtest/${encodeURIComponent(v.ticker.trim() || "TCS")}?cost_bps=${v.cost || 10}&slippage_bps=${v.slip || 5}`,
     build: () => null,
   },
   {
@@ -136,8 +136,8 @@ export const TOOLS: Tool[] = [
     build: (v) => ({ csv: v.csv, prices: kv(v.prices) }),
   },
   {
-    id: "risk", group: "Investor", title: "Portfolio risk", method: "POST", path: "/demo/portfolio-risk", demoData: true, view: "portrisk",
-    blurb: "Likely one-week and one-month loss range, correlation, and a 2020-style and 2008-style crash. Runs on placeholder prices until a market data feed is connected.",
+    id: "risk", group: "Investor", title: "Portfolio risk", method: "POST", path: "/market/portfolio-risk", demoData: true, view: "portrisk",
+    blurb: "Likely one-week and one-month loss range, correlation, and a 2020-style and 2008-style crash. Uses your local NSE data when loaded; otherwise placeholder prices, clearly labelled.",
     fields: [{ name: "csv", label: "Holdings CSV", type: "textarea", rows: 5, def: HOLDINGS }],
     build: (v) => ({ csv: v.csv }),
   },

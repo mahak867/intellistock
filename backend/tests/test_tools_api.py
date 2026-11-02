@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from backend.api.main import app
 
 P = "/api/v1/tools"
-D = "/api/v1/demo"
+D = "/api/v1/market"
 TRADES = """symbol,trade_date,order_execution_time,trade_type,quantity,price
 ABC,2026-01-05,2026-01-05T09:20:00,buy,10,100
 ABC,2026-01-05,2026-01-05T10:20:00,sell,10,110
@@ -124,7 +124,7 @@ def test_fundamentals_and_announcements(c):
 
 def test_demo_screener_backtest_portfolio_risk(c):
     s = ok(c.get(f"{D}/screener"))
-    assert len(s) >= 10 and "symbol" in s[0]
+    assert s["synthetic"] is True and len(s["rows"]) >= 10 and "symbol" in s["rows"][0]
     b = ok(c.get(f"{D}/backtest/TCS"))
     assert b["synthetic"] and "walk_forward_out_of_sample" in b and len(b["equity"]) > 20
     p = ok(c.post(f"{D}/portfolio-risk", json={"csv": "symbol,qty,avg_price\nTCS,10,100\nINFY,20,100\nITC,50,100\n"}))

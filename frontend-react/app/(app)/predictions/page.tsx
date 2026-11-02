@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { useSeries, readSignal } from "@/lib/series";
+import { useSeries, readSignal, dataLabel } from "@/lib/series";
 import { PriceChart } from "@/components/terminal/price-chart";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ function PredictionsInner() {
           <h1 className="font-display text-3xl font-bold tracking-tight">Forecast</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Day-by-day price range for {ticker}
-            {series && !series.live && ", demo data"}
+            {series && `, ${dataLabel(series)}`}
           </p>
         </div>
         <form
@@ -113,7 +113,10 @@ function PredictionsInner() {
               <p className="border-t border-border pt-3 text-xs text-muted-foreground">
                 {series.live
                   ? "The band is the model's own interval from the API."
-                  : "Demo mode: trained on synthetic prices, so it shows how the model is tested, not how it performs on real stocks."}
+                  : series.source === "nse"
+                    ? `Trained and tested on NSE end-of-day prices (as of ${series.asOf}), split-adjusted, dividends not added back. The test numbers above are out-of-sample.`
+                    : "Placeholder prices: this shows how the model is tested, not how it performs on real stocks."}
+                {series.issues && series.issues.length > 0 && <span className="mt-1 block text-warning">Data notes: {series.issues.slice(0, 3).join("; ")}</span>}
               </p>
             </div>
           </div>

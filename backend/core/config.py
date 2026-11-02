@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     DEFAULT_CURRENCY: str = "INR"
     MARKET_DATA_LOOKBACK_YEARS: int = 5
     YFINANCE_TIMEOUT: int = 30
+    DATA_PROVIDER: str = "synthetic"   # "synthetic" (placeholder prices) or "nse" (local store built by scripts/fetch_data.py)
+    DATA_DIR: str = "./data"
 
     # ── Celery ──────────────────────────────────────────────────────────────
     CELERY_BROKER_URL: str | None = None  # defaults to REDIS_URL if not set
