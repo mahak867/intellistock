@@ -95,7 +95,8 @@ def _quotes(tickers: tuple[str, ...], ver: tuple) -> list[dict]:
         df = p.df
         c = df["close"]
         out.append({"ticker": t, "price": float(c.iloc[-1]), "chg": float((c.iloc[-1] / c.iloc[-2] - 1) * 100),
-                    "spark": [float(x) for x in c.tail(30)], "rsi": float(build_features(df)["rsi"].iloc[-1] * 100)})
+                    "spark": [float(x) for x in c.tail(30)], "rsi": float(build_features(df)["rsi"].iloc[-1] * 100),
+                    "synthetic": p.synthetic, "source": p.source, "as_of": str(df.index[-1].date())})
     return out
 
 

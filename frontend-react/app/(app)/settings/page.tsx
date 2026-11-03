@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = React.useState(user?.full_name || "");
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (user?.full_name) setFullName(user.full_name);
@@ -23,9 +24,12 @@ export default function SettingsPage() {
     if (!token) return;
     setSaving(true);
     setSaved(false);
+    setSaveError(null);
     try {
       await updateProfile(token, fullName);
       setSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not save");
     } finally {
       setSaving(false);
     }
@@ -59,6 +63,7 @@ export default function SettingsPage() {
                   {saving ? "Saving…" : "Save changes"}
                 </Button>
                 {saved && <span className="text-xs text-success">Saved.</span>}
+                {saveError && <span role="alert" className="text-xs text-destructive">Not saved: {saveError}</span>}
               </div>
             </form>
           </CardContent>

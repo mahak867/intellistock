@@ -129,3 +129,16 @@ def test_demo_screener_backtest_portfolio_risk(c):
     assert b["synthetic"] and "walk_forward_out_of_sample" in b and len(b["equity"]) > 20
     p = ok(c.post(f"{D}/portfolio-risk", json={"csv": "symbol,qty,avg_price\nTCS,10,100\nINFY,20,100\nITC,50,100\n"}))
     assert p["synthetic"] and p["month"]["historical"] and len(p["stress"]) == 2
+
+
+def test_quotes_say_whether_they_are_placeholders(c):
+    q = ok(c.get(f"{D}/quotes?tickers=TCS,INFY"))
+    assert len(q) == 2 and all(x["synthetic"] is True and x["source"] == "synthetic" and x["as_of"] for x in q)
+
+
+def test_cors_allows_patch_for_profile_update(c):
+    """Settings uses PATCH /users/me from the browser; the CORS preflight must allow PATCH."""
+    r = c.options("/api/v1/users/me", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "PATCH",
+                                               "Access-Control-Request-Headers": "authorization,content-type"})
+    assert r.status_code == 200, r.text
+    assert "PATCH" in r.headers.get("access-control-allow-methods", "")

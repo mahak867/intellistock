@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { TOOLS, type Tool } from "@/lib/tools";
 import { Generic, LineSvg, SourceBanner, Stat, Table } from "@/components/tools/result";
@@ -132,11 +133,13 @@ function Screener({ data }: { data: { rows: Record<string, unknown>[]; synthetic
   );
 }
 
-export default function ToolsPage() {
+function ToolsInner() {
   const { token } = useAuth();
-  const [id, setId] = React.useState("size");
+  const params = useSearchParams();
+  const first = TOOLS.find((t) => t.id === params.get("tool"))?.id ?? "size";
+  const [id, setId] = React.useState(first);
   const tool = TOOLS.find((t) => t.id === id)!;
-  const [vals, setVals] = React.useState<Vals>(() => initial(tool));
+  const [vals, setVals] = React.useState<Vals>(() => initial(TOOLS.find((t) => t.id === first)!));
   const [data, setData] = React.useState<any>(null);
   const [err, setErr] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -222,4 +225,8 @@ export default function ToolsPage() {
       </div>
     </div>
   );
+}
+
+export default function ToolsPage() {
+  return <React.Suspense fallback={null}><ToolsInner /></React.Suspense>;
 }

@@ -30,6 +30,7 @@ export default function PortfolioPage() {
   const [holdings, setHoldings] = React.useState<Holding[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [pricesLoading, setPricesLoading] = React.useState(false);
+  const [placeholderPrices, setPlaceholderPrices] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState({
     ticker: "",
@@ -49,10 +50,26 @@ export default function PortfolioPage() {
       setHoldings(base);
       setLoading(false);
 
-      // Fetch live current prices per holding (best-effort, independent failures)
+      // Current prices from the market API in one call (real NSE end-of-day data when configured), falling back to the
+      // older per-stock signal call. A holding with no price is marked, not guessed.
       setPricesLoading(true);
+      const API = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1";
+      let quotes: Record<string, number> = {};
+      let placeholder = false;
+      try {
+        const names = Array.from(new Set(base.map((h) => h.ticker))).join(",");
+        const r = await fetch(`${API}/market/quotes?tickers=${encodeURIComponent(names)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) {
+          const rows: { ticker: string; price: number; synthetic?: boolean }[] = await r.json();
+          // Placeholder prices must never be turned into a P&L: leave those holdings unpriced.
+          placeholder = rows.some((q) => q.synthetic);
+          quotes = Object.fromEntries(rows.filter((q) => !q.synthetic).map((q) => [q.ticker, q.price]));
+        }
+      } catch { /* fall back below */ }
       const withPrices = await Promise.all(
         base.map(async (h) => {
+          if (quotes[h.ticker] !== undefined) return { ...h, current_price: quotes[h.ticker] };
+          if (placeholder) return { ...h, loadError: true };
           try {
             const signal = await getSignal(token, h.ticker);
             return { ...h, current_price: signal.current_price };
@@ -62,6 +79,7 @@ export default function PortfolioPage() {
         })
       );
       setHoldings(withPrices);
+      setPlaceholderPrices(placeholder);
       setPricesLoading(false);
     } catch {
       setLoading(false);
@@ -108,6 +126,8 @@ export default function PortfolioPage() {
     );
     return { invested, current, pnl: current - invested };
   }, [holdings]);
+  // Totals are only meaningful when every holding has a real price; otherwise show "—", never a guess.
+  const allPriced = holdings.length > 0 && holdings.every((h) => h.current_price !== undefined && !h.loadError);
 
   return (
     <div>
@@ -189,6 +209,11 @@ export default function PortfolioPage() {
 
       {holdings.length > 0 && (
         <>
+          {placeholderPrices && (
+            <div role="status" className="mb-4 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
+              This server has no real market data loaded, so current value and P&amp;L are not shown. Prices here would be placeholders, not your holdings&apos; real prices.
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <Card>
               <CardHeader className="pb-1">
@@ -206,7 +231,7 @@ export default function PortfolioPage() {
               </CardHeader>
               <CardContent>
                 <p className="tabular text-xl font-semibold">
-                  ₹{totals.current.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  {allPriced ? `₹${totals.current.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
                 </p>
               </CardContent>
             </Card>
@@ -217,15 +242,18 @@ export default function PortfolioPage() {
               <CardContent>
                 <p
                   className={`tabular text-xl font-semibold flex items-center gap-1 ${
-                    totals.pnl >= 0 ? "text-success" : "text-destructive"
+                    !allPriced ? "" : totals.pnl >= 0 ? "text-success" : "text-destructive"
                   }`}
                 >
+                  {!allPriced && "—"}
+                  {allPriced && (<>
                   {totals.pnl >= 0 ? (
                     <TrendingUp className="h-4 w-4" />
                   ) : (
                     <TrendingDown className="h-4 w-4" />
                   )}
                   ₹{Math.abs(totals.pnl).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  </>)}
                 </p>
               </CardContent>
             </Card>
@@ -258,7 +286,7 @@ export default function PortfolioPage() {
                         <td className="py-2.5 pr-4 text-right tabular">₹{h.avg_buy_price.toFixed(2)}</td>
                         <td className="py-2.5 pr-4 text-right tabular">
                           {h.loadError ? (
-                            <span className="text-muted-foreground text-xs">no model</span>
+                            <span className="text-muted-foreground text-xs">{placeholderPrices ? "no real price" : "no price"}</span>
                           ) : pricesLoading && h.current_price === undefined ? (
                             <span className="text-muted-foreground text-xs">…</span>
                           ) : (

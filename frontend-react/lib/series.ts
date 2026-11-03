@@ -25,12 +25,26 @@ export function dataLabel(s: Series | null): string {
 }
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1");
 
+const authHeaders = (token: string | null | undefined): Record<string, string> => (token && token !== "demo" ? { Authorization: `Bearer ${token}` } : {});
+
+/** Price series for one stock. Order: the market API (real NSE data when configured), then the older
+ *  provider-backed API, then an in-browser placeholder that is labelled as such. */
 export function useSeries(ticker: string, horizon: number): Series | null {
   const { token } = useAuth();
   const [s, setS] = React.useState<Series | null>(null);
   React.useEffect(() => {
     let off = false;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 20000);
     (async () => {
+      try {
+        const r = await fetch(`${API_ORIGIN}/market/forecast/${encodeURIComponent(ticker)}?horizon=${horizon}`, { headers: authHeaders(token), signal: ctl.signal });
+        if (r.ok) {
+          const d = await r.json();
+          if (!off) return setS({ candles: d.candles, fan: d.fan, live: false, metrics: d.metrics, source: d.source, asOf: d.as_of, issues: d.quality?.issues });
+          return;
+        }
+      } catch { /* API offline or timed out: try the next source */ }
       if (token && token !== "demo") {
         try {
           const [o, p] = await Promise.all([getOhlcv(token, ticker, 260), getPrediction(token, ticker, horizon)]);
@@ -40,22 +54,14 @@ export function useSeries(ticker: string, horizon: number): Series | null {
           }));
           const fan = p.predictions.map((x) => ({ time: x.date.slice(0, 10), mean: x.predicted_close, lo: x.lower_bound, hi: x.upper_bound }));
           if (!off && candles.length > 60) return setS({ candles, fan, live: true });
-        } catch { /* fall through to demo data */ }
+        } catch { /* fall through to the placeholder */ }
       }
-      try {
-        const r = await fetch(`${API_ORIGIN}/market/forecast/${encodeURIComponent(ticker)}?horizon=${horizon}`);
-        if (r.ok) {
-          const d = await r.json();
-          if (!off) return setS({ candles: d.candles, fan: d.fan, live: false, metrics: d.metrics, source: d.source, asOf: d.as_of, issues: d.quality?.issues });
-          return;
-        }
-      } catch { /* API offline: fall back to the in-browser placeholder */ }
       if (!off) {
         const candles = demoOhlcv(ticker);
         setS({ candles, fan: demoFan(candles, horizon), live: false });
       }
     })();
-    return () => { off = true; };
+    return () => { off = true; clearTimeout(timer); ctl.abort(); };
   }, [ticker, horizon, token]);
   return s;
 }
@@ -82,14 +88,15 @@ export type Quote = { ticker: string; price: number; chg: number; spark: number[
 /** Quotes from the dev demo API so every number on screen comes from the same synthetic market. */
 export function useQuotes(tickers: string[]): Quote[] | null {
   const key = tickers.join(",");
+  const { token } = useAuth();
   const [q, setQ] = React.useState<Quote[] | null>(null);
   React.useEffect(() => {
     let off = false;
-    fetch(`${API_ORIGIN}/market/quotes?tickers=${encodeURIComponent(key)}`)
+    fetch(`${API_ORIGIN}/market/quotes?tickers=${encodeURIComponent(key)}`, { headers: authHeaders(token) })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!off) setQ(d); })
       .catch(() => { if (!off) setQ(null); });
     return () => { off = true; };
-  }, [key]);
+  }, [key, token]);
   return q;
 }
