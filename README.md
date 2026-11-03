@@ -14,7 +14,7 @@
 
 IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to generate actionable trading signals.
 
-**This is not a demo.** It runs on real market data, has a real API, real authentication, real tests, and is deployed to a real cloud environment.
+**Status, honestly:** a working full-stack app with a real API, authentication, 158 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
 
 ---
 
@@ -30,7 +30,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
 | **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 50 automated tests (pytest) — unit, integration, security, and anti-leakage |
+| **Testing** | 158 automated tests (pytest) — tools, data layer, API, backtest, security |
 
 ---
 
