@@ -7,7 +7,17 @@ import numpy as np
 import pandas as pd
 
 
+CANON_DAYS = 1500
+
+
 def synthetic_ohlcv(ticker: str, days: int = 700) -> pd.DataFrame:
+    """The last `days` rows of one fixed-length path per ticker, so every endpoint shows the same prices for a symbol
+    whatever window it asks for (the path used to depend on `days`, so quotes and charts disagreed)."""
+    full = _canonical(ticker, max(days, CANON_DAYS))
+    return full.tail(days)
+
+
+def _canonical(ticker: str, days: int) -> pd.DataFrame:
     seed = int(hashlib.sha256(ticker.encode()).hexdigest()[:8], 16)
     rng = np.random.default_rng(seed)
     base = 200 + seed % 3000

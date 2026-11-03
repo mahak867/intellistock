@@ -142,3 +142,13 @@ def test_cors_allows_patch_for_profile_update(c):
                                                "Access-Control-Request-Headers": "authorization,content-type"})
     assert r.status_code == 200, r.text
     assert "PATCH" in r.headers.get("access-control-allow-methods", "")
+
+
+def test_placeholder_prices_are_consistent_across_windows():
+    """A symbol must show the same placeholder price on the watchlist, chart and screener, whatever window each asks for."""
+    from ml.forecast.synthetic import synthetic_ohlcv
+
+    for t in ("RELIANCE", "TCS"):
+        a, b, d = synthetic_ohlcv(t, 300), synthetic_ohlcv(t, 400), synthetic_ohlcv(t, 700)
+        assert a["close"].iloc[-1] == b["close"].iloc[-1] == d["close"].iloc[-1]
+        assert a.index[-1] == d.index[-1] and len(a) == 300 and len(d) == 700
