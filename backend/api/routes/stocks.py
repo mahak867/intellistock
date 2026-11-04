@@ -13,12 +13,14 @@ IntelliStock — Stocks API
 
 
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from backend.api.routes.auth import get_current_user
+from backend.api.types import Exchange, OptNoNul
 from backend.core.config import settings
 from ml.data.pipeline import NIFTY50_TICKERS, fetch_ohlcv
 from ml.features.engineer import FEATURE_COLS, compute_features
@@ -31,8 +33,8 @@ router = APIRouter()
 
 class WatchlistAddRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$")
-    exchange: str = "NSE"
-    notes: str | None = Field(default=None, max_length=500)
+    exchange: Exchange = "NSE"
+    notes: OptNoNul = Field(default=None, max_length=500)
 
 
 class OHLCVResponse(BaseModel):
@@ -114,6 +116,8 @@ async def search_stocks(
     """
     from backend.services.stock_service import StockService
 
+    if "\x00" in q:
+        raise HTTPException(status_code=422, detail="Search text must not contain null characters")
     q_upper = q.upper()
     results = await StockService.search(q_upper)
 
@@ -140,12 +144,17 @@ async def add_to_watchlist(
 ) -> dict:
     from backend.services.stock_service import StockService
 
-    item = await StockService.add_watchlist(
-        user_id=current_user["sub"],
-        ticker=payload.ticker.upper(),
-        exchange=payload.exchange,
-        notes=payload.notes,
-    )
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        item = await StockService.add_watchlist(
+            user_id=current_user["sub"],
+            ticker=payload.ticker.upper(),
+            exchange=payload.exchange,
+            notes=payload.notes,
+        )
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail=f"{payload.ticker.upper()} is already on your watchlist")
     return {"message": "Added to watchlist", "id": str(item.id)}
 
 
@@ -164,7 +173,7 @@ async def get_watchlist(current_user: dict = Depends(get_current_user)) -> dict:
     response_model=None,
 )
 async def remove_from_watchlist(
-    item_id: str,
+    item_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
 ) -> None:
     from backend.services.stock_service import StockService

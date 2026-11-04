@@ -144,10 +144,16 @@ def forecast(
     df: pd.DataFrame, horizon: int = 10, splits: int = 4, market: pd.DataFrame | None = None
 ) -> dict:
     """df: DatetimeIndex frame with open/high/low/close/volume (>= 250 rows)."""
+    # Dirty input must not change the answer silently: order by date, one row per date, no missing prices.
+    df = df[~df.index.duplicated(keep="last")].sort_index().dropna(subset=["open", "high", "low", "close"])
+    if len(df) < 250:
+        raise ValueError(f"Need at least 250 days of prices to forecast; this stock has {len(df)}.")
     # --- direction (walk-forward) ---
     feats = build_features(df, market)
     tgt = _cum_returns(df["close"], horizon)
     data = pd.concat([feats, tgt], axis=1).dropna()
+    if len(data) < 100:
+        raise ValueError("Too few clean days to forecast. Flat prices or missing volume leave too little to learn from.")
     X, Y = data[feats.columns].to_numpy(), data[tgt.columns].to_numpy()
     cv = TimeSeriesSplit(n_splits=splits, gap=horizon)
     oos_idx = np.concatenate([te for _, te in cv.split(X)])
@@ -167,6 +173,8 @@ def forecast(
     vf = vol_features(df, market)
     vt = _fwd_log_vol(df, horizon)
     vdata = pd.concat([vf, vt.rename("y")], axis=1).dropna()
+    if len(vdata) < 100:
+        raise ValueError("Too few clean days to estimate volatility. Flat prices or missing volume leave too little to learn from.")
     VX, vy = vdata[vf.columns].to_numpy(), vdata["y"].to_numpy()
     vcv = TimeSeriesSplit(n_splits=splits, gap=horizon)
     v_idx = np.concatenate([te for _, te in vcv.split(VX)])

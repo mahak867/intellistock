@@ -12,12 +12,14 @@ Account-scoped resources that aren't auth itself:
 """
 
 
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.api.routes.auth import get_current_user
+from backend.api.types import Exchange, NoNul, OptNoNul
 from backend.core.database import get_session
 from backend.models.db_models import AlertRule, PortfolioEntry
 
@@ -28,16 +30,16 @@ router = APIRouter()
 
 
 class UpdateProfileRequest(BaseModel):
-    full_name: str | None = Field(default=None, min_length=1, max_length=100)
+    full_name: OptNoNul = Field(default=None, min_length=1, max_length=100)
 
 
 class PortfolioAddRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$")
-    exchange: str = "NSE"
+    exchange: Exchange = "NSE"
     quantity: float = Field(gt=0)
     avg_buy_price: float = Field(gt=0)
     buy_date: datetime
-    notes: str | None = Field(default=None, max_length=500)
+    notes: OptNoNul = Field(default=None, max_length=500)
 
 
 class AlertAddRequest(BaseModel):
@@ -129,7 +131,7 @@ async def add_portfolio_entry(
     response_model=None,
 )
 async def remove_portfolio_entry(
-    entry_id: str,
+    entry_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
 ) -> None:
     async with get_session() as session:
@@ -206,7 +208,7 @@ async def add_alert(
     response_model=None,
 )
 async def remove_alert(
-    alert_id: str,
+    alert_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
 ) -> None:
     async with get_session() as session:

@@ -152,3 +152,69 @@ def test_placeholder_prices_are_consistent_across_windows():
         a, b, d = synthetic_ohlcv(t, 300), synthetic_ohlcv(t, 400), synthetic_ohlcv(t, 700)
         assert a["close"].iloc[-1] == b["close"].iloc[-1] == d["close"].iloc[-1]
         assert a.index[-1] == d.index[-1] and len(a) == 300 and len(d) == 700
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/position-size", {"entry": 500, "stop": 490, "capital": 99999999999999999999, "risk_pct": 1}),
+    ("/costs", {"segment": "equity_intraday", "buy_price": 99999999999999999999, "sell_price": 1, "qty": 1}),
+    ("/options/analyse", {"spot": 99999999999999999999, "strike": 24200, "days": 7, "kind": "call", "vol_pct": 14}),
+    ("/options/analyse", {"spot": 24000, "strike": 24200, "days": 99999999999999999999, "kind": "call", "vol_pct": 14}),
+    ("/options/chain", [{"strike": 100, "call_oi": 99999999999999999999, "put_oi": 5}]),
+    ("/risk/day", {"pnls": [99999999999999999999, 1], "max_loss": 2000}),
+    ("/planner/sip", {"monthly": 99999999999999999999, "annual_return_pct": 12, "years": 10}),
+    ("/planner/goal", {"goal_today": 99999999999999999999, "years": 10, "annual_return_pct": 12, "inflation_pct": 6}),
+])
+def test_extreme_numbers_are_a_422_not_a_500(c, path, body):
+    r = c.post(P + path, json=body)
+    assert r.status_code < 500, r.text
+    assert r.status_code in (200, 422)
+
+
+@pytest.mark.parametrize("raw", [b"NaN", b'{"entry": NaN}', b"[Infinity]", b'{"entry": Infinity, "stop": 1, "capital": 1, "risk_pct": 1}'])
+def test_non_finite_json_is_a_422(c, raw):
+    r = c.post(f"{P}/position-size", content=raw, headers={"Content-Type": "application/json"})
+    assert r.status_code == 422, r.text
+    assert "detail" in r.json()
+
+
+@pytest.fixture()
+def authed(c):
+    from backend.api.routes.auth import get_current_user
+
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "00000000-0000-0000-0000-000000000001", "role": "user"}
+    yield c
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+U = "/api/v1/users"
+
+
+@pytest.mark.parametrize("path,body", [
+    (f"{U}/portfolio", {"ticker": "TCS", "exchange": "A" * 40, "quantity": 1, "avg_buy_price": 1, "buy_date": "2026-01-01T00:00:00"}),
+    (f"{U}/portfolio", {"ticker": "TCS", "exchange": "NSE", "quantity": 1, "avg_buy_price": 1, "buy_date": "2026-01-01T00:00:00", "notes": "a\u0000b"}),
+    ("/api/v1/stocks/watchlist", {"ticker": "TCS", "exchange": "'; DROP TABLE users;--"}),
+    ("/api/v1/stocks/watchlist", {"ticker": "TCS", "notes": "x\u0000"}),
+    ("/api/v1/auth/register", {"email": "a@example.com", "password": "Valid-Pass-1!", "full_name": "a\u0000b"}),
+])
+def test_bad_strings_are_422_before_reaching_the_database(authed, path, body):
+    r = authed.post(path, json=body)
+    assert r.status_code == 422, r.text
+
+
+@pytest.mark.parametrize("path", [f"{U}/portfolio/abc", f"{U}/alerts/123", "/api/v1/stocks/watchlist/'; --"])
+def test_malformed_ids_are_422_not_500(authed, path):
+    assert authed.delete(path).status_code == 422
+
+
+def test_login_with_null_character_is_401_not_500(c):
+    r = c.post("/api/v1/auth/login", data={"username": "a\u0000@example.com", "password": "x"})
+    assert r.status_code == 401
+
+
+def test_exchange_accepts_nse_and_bse_only():
+    from backend.api.routes.users import PortfolioAddRequest
+
+    ok = dict(ticker="TCS", quantity=1, avg_buy_price=1, buy_date="2026-01-01T00:00:00")
+    assert PortfolioAddRequest(exchange="BSE", **ok).exchange == "BSE"
+    with pytest.raises(Exception):
+        PortfolioAddRequest(exchange="NYSE", **ok)

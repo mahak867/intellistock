@@ -15,6 +15,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from backend.api.routes.auth import get_current_user
+from backend.api.safe import SafeRoute
 from backend.core.config import settings
 from backend.data import providers
 from backend.data.providers import NoData
@@ -35,7 +36,7 @@ def _gate():
                             "Set NSE_DATA_LICENSED=true once you hold one, or load licensed vendor data with DATA_PROVIDER=local. See LICENSING.md.")
 
 
-router = APIRouter(dependencies=[Depends(_gate)] + ([] if settings.is_development else [Depends(get_current_user)]))
+router = APIRouter(route_class=SafeRoute, dependencies=[Depends(_gate)] + ([] if settings.is_development else [Depends(get_current_user)]))
 
 
 def _ver() -> tuple:
@@ -69,7 +70,10 @@ def status():
 @lru_cache(maxsize=256)
 def _forecast(t: str, horizon: int, ver: tuple) -> dict:
     p = providers.get_prices(t, 700)
-    res = forecast(p.df, horizon, market=providers.market_frame(p.df.index))
+    try:
+        res = forecast(p.df, horizon, market=providers.market_frame(p.df.index))
+    except ValueError as e:
+        raise NoData(f"{t}: {e}")
     candles = [{"time": d.strftime("%Y-%m-%d"), "open": r.open, "high": r.high, "low": r.low, "close": r.close, "volume": int(r.volume)}
                for d, r in p.df.tail(260).iterrows()]
     return {"ticker": t, **_meta(p), "candles": candles, **res}

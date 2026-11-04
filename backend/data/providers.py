@@ -68,8 +68,8 @@ def get_prices(symbol: str, days: int = 700) -> Prices:
             df, q = build_ohlcv(rows, sym, dividends=dv.load_dividends(data_dir()))
         except KeyError:
             raise NoData(f"No data for {sym} in the local store. Check the symbol, or fetch a wider range.")
-        if len(df) < 120:
-            raise NoData(f"Only {len(df)} days of data for {sym}; need at least 120.")
+        if len(df) < 250:
+            raise NoData(f"Only {len(df)} days of data for {sym}; need at least 250.")
         return Prices(df.tail(days), store_source(), q)
     from ml.forecast.synthetic import synthetic_ohlcv
 

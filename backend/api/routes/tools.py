@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.api.routes.auth import get_current_user
+from backend.api.safe import SafeRoute
 from backend.core.config import settings
 from backend.tools import announcements as AN
 from backend.tools import calendar as CAL
@@ -22,7 +23,7 @@ from backend.tools import risklimits as RL
 from backend.tools import sizing as SZ
 from backend.tools import tax as TX
 
-router = APIRouter(dependencies=[] if settings.is_development else [Depends(get_current_user)])
+router = APIRouter(route_class=SafeRoute, dependencies=[] if settings.is_development else [Depends(get_current_user)])
 
 
 def _bad(e: Exception):

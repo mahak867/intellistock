@@ -8,6 +8,21 @@ export class ApiError extends Error {
   }
 }
 
+/** The API sends `detail` as a string, or as a list of {loc, msg} for validation errors. Always return readable text. */
+export function formatDetail(detail: unknown, fallback = "Request failed"): string {
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail) && detail.length) {
+    return detail
+      .map((d) => {
+        const field = Array.isArray(d?.loc) ? d.loc.filter((x: unknown) => x !== "body").join(" ") : "";
+        const msg = String(d?.msg ?? "invalid").replace(/^Value error, /, "");
+        return field ? `${field}: ${msg}` : msg;
+      })
+      .join("; ");
+  }
+  return fallback;
+}
+
 async function request<T>(
   path: string,
   token: string | null,
@@ -23,7 +38,7 @@ async function request<T>(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(res.status, body.detail || "Request failed");
+    throw new ApiError(res.status, formatDetail(body.detail));
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -45,7 +60,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: "Login failed" }));
-    throw new ApiError(res.status, body.detail || "Login failed");
+    throw new ApiError(res.status, formatDetail(body.detail, "Login failed"));
   }
   return res.json();
 }

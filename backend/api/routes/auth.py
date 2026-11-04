@@ -25,6 +25,7 @@ from loguru import logger
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from backend.api.types import NoNul
 from backend.core.config import settings
 
 router = APIRouter()
@@ -136,7 +137,7 @@ async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    full_name: str = Field(min_length=1, max_length=100)
+    full_name: NoNul = Field(min_length=1, max_length=100)
 
     @field_validator("password")
     @classmethod
@@ -212,6 +213,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> LoginRespon
     """
     from backend.services.user_service import UserService
 
+    if "\x00" in form_data.username or "\x00" in form_data.password:
+        # Postgres cannot store NUL; treat it as a failed login rather than letting it reach the database.
+        raise HTTPException(status_code=401, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
     user = await UserService.get_by_email(form_data.username)  # username = email
     if not user or not verify_password(form_data.password, user.hashed_password):
         # Constant-time comparison via passlib — no timing attack

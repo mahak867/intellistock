@@ -19,6 +19,7 @@ from typing import AsyncGenerator
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -122,6 +123,9 @@ def create_app() -> FastAPI:
     # ── Rate limiter ─────────────────────────────────────────────────────────
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    from backend.api.safe import validation_handler
+
+    app.add_exception_handler(RequestValidationError, validation_handler)
 
     # ── CORS ─────────────────────────────────────────────────────────────────
     # SECURITY: never fall back to a wildcard origin here. Per the CORS spec,
