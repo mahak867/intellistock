@@ -80,13 +80,18 @@ def main() -> int:
         results[a.kind] = (check_equity if a.kind == "equity" else check_index)(raw)
     else:
         headers = {"User-Agent": os.environ.get("DATA_USER_AGENT", DEFAULT_UA), "Accept": "*/*"}
-        with httpx.Client(headers=headers, timeout=30, follow_redirects=True) as c:
-            print("Equity file:")
-            d, raw = latest(c, lambda d: URL.format(d=d))
-            results["equity"] = check_equity(raw) if raw else ["could not download any file in the last 12 days: open the URL in a browser and use --file"]
-            print("\nIndex file:")
-            d, raw = latest(c, lambda d: indices.URL.format(d=d))
-            results["index"] = check_index(raw) if raw else ["could not download any index file: open the URL in a browser and use --file --kind index"]
+        try:
+            with httpx.Client(headers=headers, timeout=30, follow_redirects=True) as c:
+                print("Equity file:")
+                d, raw = latest(c, lambda d: URL.format(d=d))
+                results["equity"] = check_equity(raw) if raw else ["could not download any file in the last 12 days: open the URL in a browser and use --file"]
+                print("\nIndex file:")
+                d, raw = latest(c, lambda d: indices.URL.format(d=d))
+                results["index"] = check_index(raw) if raw else ["could not download any index file: open the URL in a browser and use --file --kind index"]
+        except httpx.HTTPError as e:
+            print(f"\nCould not reach NSE ({type(e).__name__}: {e}).")
+            print("Check your internet connection or proxy. Or download one file in a browser and run again with --file PATH (add --kind index for an index file).")
+            return 2
     print("\n=== RESULT ===")
     bad = False
     for k, f in results.items():

@@ -10,6 +10,7 @@ it cannot be mistaken for real market data.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from pathlib import Path
 
@@ -29,6 +30,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://localhost:3000")
     ap.add_argument("--out", default="screenshots")
+    ap.add_argument("--email", default=os.environ.get("CAPTURE_EMAIL"), help="login for a server that requires one (or set CAPTURE_EMAIL)")
+    ap.add_argument("--password", default=os.environ.get("CAPTURE_PASSWORD"), help="or set CAPTURE_PASSWORD")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -43,6 +46,18 @@ def main() -> int:
             src = re.search(r"(NSE end-of-day prices as of [\d-]+|Local data store[^.]*|Placeholder prices[^.]*|Test fixture[^.]*)", text)
             print(f"{f.name:55} {src.group(1) if src else ''}")
 
+        if a.email and a.password:
+            pg.goto(a.base + "/login")
+            pg.fill("#email", a.email)
+            pg.fill("#password", a.password)
+            pg.get_by_role("button", name="Sign in").click()
+            pg.wait_for_timeout(3500)
+        pg.goto(a.base + "/dashboard")
+        pg.wait_for_timeout(2500)
+        if "/login" in pg.url:
+            print("The app sent us to the login page. Pass --email and --password (or set CAPTURE_EMAIL and CAPTURE_PASSWORD).")
+            b.close()
+            return 2
         for path, name in (("/dashboard", "dashboard"), ("/predictions", "forecast")):
             pg.goto(a.base + path)
             pg.wait_for_timeout(4000)

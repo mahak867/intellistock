@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
 import { useSeries, useQuotes, readSignal, dataLabel } from "@/lib/series";
 import { ALL_TICKERS, SECTORS, demoQuote } from "@/lib/demo";
 import { PriceChart, type Hover } from "@/components/terminal/price-chart";

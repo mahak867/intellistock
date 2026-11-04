@@ -16,7 +16,7 @@ export function PriceChart({
 }: { candles: Candle[]; fan: FanPoint[]; showMA: boolean; showFan: boolean; onHover?: (c: Hover) => void }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const hoverRef = React.useRef(onHover);
-  hoverRef.current = onHover;
+  React.useEffect(() => { hoverRef.current = onHover; });
 
   React.useEffect(() => {
     const el = ref.current;
