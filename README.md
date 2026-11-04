@@ -14,7 +14,7 @@
 
 IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to generate actionable trading signals.
 
-**Status, honestly:** a working full-stack app with a real API, authentication, 183 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
+**Status, honestly:** a working full-stack app with a real API, authentication, 185 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
 
 ---
 
@@ -30,7 +30,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
 | **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 183 automated tests (pytest) — tools, data layer, API, backtest, security |
+| **Testing** | 185 automated tests (pytest) — tools, data layer, API, backtest, security |
 
 ---
 
@@ -193,6 +193,16 @@ Dense(1)  → predicted Close price
 
 ---
 
+## 🗄️ Database migrations
+
+Development creates tables automatically. Anywhere else, create them with Alembic before the API starts (the API Docker image does this on boot):
+
+```bash
+alembic upgrade head                                   # apply
+alembic check                                          # fails if the models have drifted from the migrations
+alembic revision --autogenerate -m "describe change"   # after changing backend/models/db_models.py
+```
+
 ## ☁️ Cloud Deployment
 
 ### GCP Cloud Run (recommended)
@@ -247,7 +257,7 @@ intellistock/
 ├── infra/
 │   ├── docker/
 │   │   ├── Dockerfile.api       # Multi-stage production image
-│   │   └── migrations/          # Alembic schema migrations
+│   │   └── migrations/          # Alembic schema migrations (alembic.ini at the repo root)
 ├── .github/workflows/
 │   └── ci.yml                   # GitHub Actions: backend tests
 ├── train.py                     # Model training CLI
