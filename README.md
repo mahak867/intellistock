@@ -193,6 +193,17 @@ Dense(1)  → predicted Close price
 
 ---
 
+## ▶️ Try it on your computer (one command)
+
+Needs Python 3.12 and Node 20+. No Postgres, Redis or Docker.
+
+```bash
+pip install -r requirements.txt
+python scripts/demo.py
+```
+
+The first run installs and builds the web app (a few minutes). Then open http://localhost:3000 and sign in with `demo@example.com` / `Demo-Pass-2026!`. The demo uses a SQLite file (`data/demo.sqlite3`) and an in-memory cache, comes with a sample watchlist and portfolio, and shows **placeholder prices** (the app says so on screen). `DEMO_LITE` is refused outside `ENVIRONMENT=development`. Press Ctrl+C to stop.
+
 ## 🗄️ Database migrations
 
 Development creates tables automatically. Anywhere else, create them with Alembic before the API starts (the API Docker image does this on boot):

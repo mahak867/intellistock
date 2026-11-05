@@ -33,6 +33,11 @@ AsyncSessionFactory: async_sessionmaker | None = None
 
 
 def _create_engine() -> AsyncEngine:
+    if settings.DEMO_LITE:
+        from pathlib import Path
+
+        Path(settings.DEMO_SQLITE_PATH).parent.mkdir(parents=True, exist_ok=True)
+        return create_async_engine(f"sqlite+aiosqlite:///{settings.DEMO_SQLITE_PATH}", echo=False)
     return create_async_engine(
         str(settings.DATABASE_URL),
         pool_size=settings.DB_POOL_SIZE,

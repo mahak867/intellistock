@@ -9,7 +9,7 @@ from enum import Enum
 from functools import lru_cache
 from typing import Any
 
-from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, field_validator
+from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     # ── Rate Limiting ───────────────────────────────────────────────────────
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_BURST: int = 10
+
+    # ── Demo-lite: SQLite file + in-memory Redis, so the app runs with only Python and Node (scripts/demo.py).
+    # Development only: refused in staging and production.
+    DEMO_LITE: bool = False
+    DEMO_SQLITE_PATH: str = "./data/demo.sqlite3"
 
     # ── Database (Postgres) ─────────────────────────────────────────────────
     DATABASE_URL: PostgresDsn = Field(...)
@@ -112,6 +117,12 @@ class Settings(BaseSettings):
         if isinstance(v, Environment):
             return v.value
         return str(v).lower()
+
+    @model_validator(mode="after")
+    def _demo_lite_only_in_development(self):
+        if self.DEMO_LITE and self.ENVIRONMENT != Environment.DEVELOPMENT:
+            raise ValueError("DEMO_LITE uses SQLite and in-memory Redis. It is only allowed with ENVIRONMENT=development.")
+        return self
 
     @property
     def is_production(self) -> bool:

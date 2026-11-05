@@ -23,6 +23,12 @@ _redis_pool: aioredis.Redis | None = None
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(2), reraise=True)
 async def init_redis() -> None:
     global _redis_pool
+    if settings.DEMO_LITE:
+        import fakeredis.aioredis as fake
+
+        _redis_pool = fake.FakeRedis(decode_responses=True)
+        logger.info("Redis: in-memory (DEMO_LITE)")
+        return
     _redis_pool = aioredis.from_url(
         str(settings.REDIS_URL),
         encoding="utf-8",

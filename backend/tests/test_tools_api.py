@@ -218,3 +218,15 @@ def test_exchange_accepts_nse_and_bse_only():
     assert PortfolioAddRequest(exchange="BSE", **ok).exchange == "BSE"
     with pytest.raises(Exception):
         PortfolioAddRequest(exchange="NYSE", **ok)
+
+
+def test_demo_lite_is_refused_outside_development():
+    from pydantic import ValidationError
+
+    from backend.core.config import Settings
+
+    base = dict(SECRET_KEY="k" * 40, DATABASE_URL="postgresql+asyncpg://a:b@localhost:5432/x", REDIS_URL="redis://localhost:6379/0")
+    assert Settings(DEMO_LITE=True, ENVIRONMENT="development", **base).DEMO_LITE is True
+    for env in ("staging", "production"):
+        with pytest.raises(ValidationError):
+            Settings(DEMO_LITE=True, ENVIRONMENT=env, **base)

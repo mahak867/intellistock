@@ -56,6 +56,7 @@ pytest-asyncio==0.23.7
 pytest-cov==5.0.0
 factory-boy==3.3.0
 fakeredis==2.23.2             # in-memory redis for tests (no real server needed)
+aiosqlite==0.20.0              # SQLite driver for the local demo (DEMO_LITE)
 
 # ─── Code Quality ──────────────────────────────────────────────────────────────
 black==24.4.2

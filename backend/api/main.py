@@ -67,7 +67,7 @@ if settings.SENTRY_DSN:
 
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri=str(settings.REDIS_URL),
+    storage_uri="memory://" if settings.DEMO_LITE else str(settings.REDIS_URL),
     default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
 )
 
