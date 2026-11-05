@@ -193,6 +193,11 @@ def forecast(
     zlo, zhi = np.quantile(Z, 0.10, axis=0), np.quantile(Z, 0.90, axis=0)
     covered = (Z[:, h] >= zlo[h]) & (Z[:, h] <= zhi[h])
     width = float(np.mean((zhi[h] - zlo[h]) * sig_at * np.sqrt(horizon)))
+    # The line above measures coverage on the same rows the quantiles were fitted on, so it is close to 80% by
+    # construction. The honest test: fit the quantiles on the older half of the out-of-sample rows, score the newer half.
+    half = len(Z) // 2
+    a_lo, a_hi = np.quantile(Z[:half, h], 0.10), np.quantile(Z[:half, h], 0.90)
+    holdout = float(np.mean((Z[half:, h] >= a_lo) & (Z[half:, h] <= a_hi)))
 
     # --- final fit on all data, forecast forward ---
     last_close = float(df["close"].iloc[-1])
@@ -228,7 +233,8 @@ def forecast(
             "vol_naive_mae_log": vol_naive_mae,
             "vol_beats_naive": vol_mae < vol_naive_mae,
             "band_coverage_80": float(np.mean(covered)),
-            "band_width_pct": width,
+            "band_coverage_80_holdout": holdout,
+            "band_width_pct": width * 100,
             "daily_vol_pct": sigma * 100,
         },
     }

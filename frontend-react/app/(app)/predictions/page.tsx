@@ -131,7 +131,7 @@ function ModelQuality({ m }: { m: NonNullable<ReturnType<typeof useSeries>>["met
     ["Direction right", `${(m.directional_accuracy * 100).toFixed(0)}%`, "50% is a coin flip"],
     ["Direction beats \"no change\"", m.has_edge ? "Yes" : "No", `error ${(m.mae_log_return * 100).toFixed(2)}% vs ${(m.mae_naive_baseline * 100).toFixed(2)}%`],
     ["Volatility beats naive", m.vol_beats_naive ? "Yes" : "No", `error ${m.vol_mae_log.toFixed(3)} vs ${m.vol_naive_mae_log.toFixed(3)} (log)`],
-    ["Range holds actual", `${(m.band_coverage_80 * 100).toFixed(0)}%`, "target 80%"],
+    ["Range holds actual (newer data)", `${(m.band_coverage_80_holdout * 100).toFixed(0)}%`, "target 80%"],
     ["Tested on", `${m.walk_forward_samples} days`, m.market_features ? "walk-forward, with index and VIX" : "walk-forward, price history only"],
   ];
   return (

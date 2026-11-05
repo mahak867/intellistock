@@ -87,7 +87,7 @@ def main() -> None:
             "edge(price)": "YES" if base["has_edge"] else "no",
             "edge(+mkt)": "YES" if fm["has_edge"] else "no",
             "vol>naive": "yes" if fm["vol_beats_naive"] else "no",
-            "range_hits": f"{fm['band_coverage_80']:.0%}",
+            "range_hits": f"{fm['band_coverage_80_holdout']:.0%}",
             f"{a.horizon}d_range": f"{last['lo']:.0f}-{last['hi']:.0f} (mid {last['mean']:.0f})",
         })
     if not rows:

@@ -92,7 +92,7 @@ export default function DashboardPage() {
               </p>
             ) : <p className="font-display text-3xl font-bold">…</p>}
             <p className="mt-1 text-xs text-muted-foreground">
-              {series?.metrics ? `Holds about ${(series.metrics.band_coverage_80 * 100).toFixed(0)}% of the time in testing` : "80% band"}
+              {series?.metrics ? `Holds about ${(series.metrics.band_coverage_80_holdout * 100).toFixed(0)}% of the time in testing` : "80% band"}
             </p>
             {edge ? (
               <div className="mt-4">

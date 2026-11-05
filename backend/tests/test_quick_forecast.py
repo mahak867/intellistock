@@ -14,6 +14,7 @@ def test_shape_and_ordering():
 def test_band_is_calibrated_out_of_sample():
     m = forecast(synthetic_ohlcv("CAL", 800), horizon=5)["metrics"]
     assert 0.72 <= m["band_coverage_80"] <= 0.88
+    assert 0.55 <= m["band_coverage_80_holdout"] <= 0.97
 
 
 def test_random_walk_has_no_edge_and_shrinks_to_zero():

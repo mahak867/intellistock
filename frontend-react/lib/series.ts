@@ -10,7 +10,7 @@ export type MlMetrics = {
   directional_accuracy: number; shrink: number; mae_log_return: number; mae_naive_baseline: number;
   beats_naive: boolean; has_edge: boolean; edge_t_stat: number;
   vol_mae_log: number; vol_naive_mae_log: number; vol_beats_naive: boolean;
-  band_coverage_80: number; band_width_pct: number; daily_vol_pct: number;
+  band_coverage_80: number; band_coverage_80_holdout: number; band_width_pct: number; daily_vol_pct: number;
 };
 export type Series = { candles: Candle[]; fan: FanPoint[]; live: boolean; metrics?: MlMetrics; source?: "synthetic" | "fixture" | "nse" | "local"; asOf?: string; issues?: string[] };
 
