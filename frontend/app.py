@@ -38,7 +38,7 @@ st.set_page_config(
     },
 )
 
-API_BASE = "http://localhost:8000/api/v1"
+API_BASE = os.environ.get("INTELLISTOCK_API_BASE", "http://localhost:8000/api/v1")
 
 # ─── Auth helpers ────────────────────────────────────────────────────────────────
 

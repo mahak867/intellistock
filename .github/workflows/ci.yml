@@ -86,3 +86,45 @@ jobs:
       - name: Logs
         if: always()
         run: docker logs api || true
+
+  compose:
+    # The whole stack from docker-compose.yml: every service must come up healthy and talk to the others.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make a .env for the stack
+        run: |
+          cp .env.example .env
+          sed -i -e 's/CHANGE_ME_DB_PASSWORD/ci-db-pass/g' -e 's/CHANGE_ME_REDIS_PASSWORD/ci-redis-pass/g' \
+                 -e 's/CHANGE_ME_GRAFANA_PASSWORD/ci-grafana-pass/g' \
+                 -e "s/^SECRET_KEY=.*/SECRET_KEY=$(openssl rand -hex 32)/" \
+                 -e 's/^ENVIRONMENT=.*/ENVIRONMENT=staging/' -e 's/^DEBUG=.*/DEBUG=false/' .env
+      - name: Build and start everything (waits for health checks)
+        run: docker compose up -d --build --wait --wait-timeout 900
+      - name: Every service answers
+        run: |
+          docker compose ps
+          curl -sf http://localhost:8000/api/v1/health && echo " api ok"
+          curl -sf -o /dev/null http://localhost:3000/login && echo "web ok"
+          curl -sf http://localhost:8501/_stcore/health && echo " dashboard ok"
+          curl -sf http://localhost:5555/healthcheck && echo " flower ok"
+          docker compose exec -T worker celery -A backend.core.celery_app inspect ping --timeout 10 | grep -q pong && echo "worker ok"
+          docker compose exec -T scheduler test -s /app/data/celerybeat-schedule && echo "scheduler ok"
+          docker compose exec -T api alembic current | grep -q "(head)" && echo "migrations at head"
+      - name: A scheduled task runs through the worker
+        run: |
+          docker compose exec -T api python -c "from backend.core.celery_app import check_alerts; r = check_alerts.delay().get(timeout=180); print(r); assert 'checked' in r"
+      - name: Prometheus scrapes the API
+        run: |
+          for i in $(seq 1 20); do
+            if curl -s 'http://localhost:9090/api/v1/targets' | grep -q '"health":"up"'; then echo "prometheus scraping api"; exit 0; fi
+            sleep 5
+          done
+          curl -s http://localhost:9090/api/v1/targets; exit 1
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color --tail=80
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

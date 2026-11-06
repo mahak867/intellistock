@@ -1,0 +1,18 @@
+# Next.js web app. The API address is baked in at build time (it is used by the browser).
+FROM node:22-alpine AS build
+WORKDIR /web
+COPY frontend-react/package.json frontend-react/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend-react/ ./
+ARG NEXT_PUBLIC_API_BASE=http://localhost:8000/api/v1
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE NEXT_TELEMETRY_DISABLED=1
+RUN npm run build && npm prune --omit=dev
+
+FROM node:22-alpine
+WORKDIR /web
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+COPY --from=build --chown=node:node /web ./
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD wget -qO- http://127.0.0.1:3000/login >/dev/null || exit 1
+CMD ["npx", "next", "start", "-p", "3000", "-H", "0.0.0.0"]

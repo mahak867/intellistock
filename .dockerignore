@@ -11,8 +11,9 @@
 data/
 models/
 logs/
-frontend/
-frontend-react/
+frontend-react/node_modules/
+frontend-react/.next/
+frontend-react/tsconfig.tsbuildinfo
 docs/
 *.zip
 *.bundle

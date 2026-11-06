@@ -22,6 +22,8 @@ RUN groupadd -r intellistock && useradd -r -g intellistock -d /app -s /sbin/nolo
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY --chown=intellistock:intellistock . .
+# The web app and the Streamlit dashboard have their own images.
+RUN rm -rf /app/frontend-react /app/frontend
 RUN mkdir -p /app/data /app/models /app/logs /app/.cache && chown -R intellistock:intellistock /app/data /app/models /app/logs /app/.cache
 
 # The slim image has no curl, so the health check uses Python.
