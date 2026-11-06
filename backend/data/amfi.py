@@ -27,22 +27,35 @@ class Nav:
 
 
 def parse(text: str) -> dict[str, Nav]:
+    """Columns are found by header name: AMFI added Plan and Option columns in 2026, which broke fixed positions."""
     lines = text.splitlines()
     head = next((l for l in lines if l.lower().startswith("scheme code")), None)
     if head is None or "net asset value" not in head.lower():
         raise ValueError("AMFI NAV file format changed: header line not found.")
+    cols = [c.strip().lower() for c in head.split(";")]
+
+    def col(*names):
+        return next((i for i, c in enumerate(cols) for n in names if c.startswith(n)), None)
+
+    i_code, i_name, i_nav, i_date = col("scheme code"), col("scheme name"), col("net asset value"), col("date")
+    i_isin1, i_isin2 = col("isin div payout", "isin growth"), col("isin div reinvestment")
+    i_plan, i_opt = col("plan"), col("option")
+    if None in (i_code, i_name, i_nav, i_date):
+        raise ValueError(f"AMFI NAV file format changed: columns are {cols}.")
     out: dict[str, Nav] = {}
     for l in lines:
         parts = [p.strip() for p in l.split(";")]
-        if len(parts) < 6 or not parts[0].isdigit():
+        if len(parts) != len(cols) or not parts[i_code].isdigit():
             continue
         try:
-            nav = float(parts[4])
-            d = datetime.strptime(parts[5], "%d-%b-%Y").date()
+            nav = float(parts[i_nav])
+            d = datetime.strptime(parts[i_date], "%d-%b-%Y").date()
         except ValueError:
             continue  # "N.A." NAVs and odd rows
-        isins = tuple(x for x in (parts[1], parts[2]) if x and x not in ("-", "NA") and len(x) == 12)
-        out[parts[0]] = Nav(parts[0], parts[3], isins, nav, d)
+        isins = tuple(x for x in (parts[i] for i in (i_isin1, i_isin2) if i is not None) if x and len(x) == 12)
+        name = parts[i_name]
+        extra = [parts[i] for i in (i_plan, i_opt) if i is not None and parts[i] and parts[i].lower() not in name.lower()]
+        out[parts[i_code]] = Nav(parts[i_code], " - ".join([name, *extra]), isins, nav, d)
     if len(out) < 100 and len(lines) > 200:
         raise ValueError("AMFI NAV file format changed: almost no rows could be read.")
     return out

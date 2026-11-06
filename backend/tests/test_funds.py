@@ -38,6 +38,21 @@ NSDL = {"mutual_funds": [{"name": "UTI Nifty 50 Index Fund", "isin": "INF769K01D
 ME, OTHER = "5f0c2a9e-3b7d-4c1e-9a2f-7d8e6b5a4c3d", "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
 
 
+NEW_FORMAT = """Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date\r
+ \r
+Open Ended Schemes(Children's Fund)\r
+135762;INF846K01WO1;-;Axis Children's Fund;Direct Plan;Growth Option;30.5281;05-Nov-2026\r
+135765;INF846K01WP8;-;Axis Children's Fund;Direct Plan;IDCW Option;28.1219;05-Nov-2026\r
+"""
+
+
+def test_amfi_parse_2026_format_with_plan_and_option():
+    """The real file (checked on GitHub's runners, Nov 2026) gained Plan and Option columns."""
+    d = amfi.parse(NEW_FORMAT)
+    assert d["135762"].nav == 30.5281 and d["135762"].name == "Axis Children's Fund - Direct Plan - Growth Option"
+    assert [n.code for n in amfi.search(d, "axis direct idcw")] == ["135765"]
+
+
 def test_amfi_parse():
     d = amfi.parse(NAV_FILE)
     assert set(d) == {"122639", "122640", "120716"}  # N.A. NAV skipped, headers skipped
