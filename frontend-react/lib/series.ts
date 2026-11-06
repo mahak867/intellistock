@@ -49,7 +49,12 @@ export function useSeries(ticker: string, horizon: number): Series | null {
           if (!off) return setS({ candles: d.candles, fan: d.fan, live: false, metrics: d.metrics, source: d.source, asOf: d.as_of, issues: d.quality?.issues });
           return;
         }
-      } catch { /* API offline or timed out: try the next source */ }
+      } catch {
+        // Network failure or cancelled request: the API is unreachable, so the older endpoints on the same
+        // server would fail too. Go straight to the placeholder instead of firing more requests.
+        if (!off && !leaving) { const candles = demoOhlcv(ticker); setS({ candles, fan: demoFan(candles, horizon), live: false }); }
+        return;
+      }
       if (off || leaving) return; // the page moved on: do not start more requests
       if (token && token !== "demo") {
         try {

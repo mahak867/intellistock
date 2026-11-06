@@ -39,8 +39,11 @@ jobs:
       - name: AMFI mutual fund NAVs parse
         run: |
           python - <<'PY'
+          import httpx
           from backend.data import amfi
-          d = amfi.navs()
+          t = httpx.get(amfi.URL, follow_redirects=True, timeout=30, headers={"User-Agent": "IntelliStock/1.0"}).text
+          print(repr(t[:600])); print(len(t.splitlines()), "lines")
+          d = amfi.parse(t)
           dates = sorted({n.date for n in d.values()})
           print(len(d), "schemes; latest NAV date", dates[-1])
           print([(n.code, n.name[:50], n.nav) for n in amfi.search(d, "nifty 50 index direct growth")[:3]])
