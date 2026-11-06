@@ -1,0 +1,38 @@
+name: Live data checks
+
+# Runs where the internet is reachable (GitHub's runners): checks that NSE's current files still match the parser,
+# that a short real download works end to end, and that the Yahoo path used by training still answers.
+# Nothing downloaded here is stored or published (NSE data needs a licence to redistribute).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"   # Mondays 08:47 IST
+
+jobs:
+  nse-and-yahoo:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-only-secret-key-0123456789abcdef0123
+      DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: NSE file format (equity and index)
+        run: python scripts/check_nse_format.py
+      - name: Download one week of NSE end-of-day data into a temporary store
+        run: |
+          python scripts/fetch_data.py --start $(date -d '10 days ago' +%F) --end $(date +%F) --delay 2 --dir /tmp/nse
+          ls -la /tmp/nse
+      - name: Yahoo Finance answers (training's fallback source)
+        run: |
+          python - <<'PY'
+          from ml.data.pipeline import fetch_ohlcv
+          df = fetch_ohlcv("TCS", lookback_years=1, use_cache=False)
+          print(len(df), "rows", df.index[0].date(), "to", df.index[-1].date())
+          assert len(df) > 200, "too few rows from Yahoo"
+          PY
