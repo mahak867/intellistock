@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths: ["scripts/demo.py", "scripts/demo_smoke.py", "requirements.txt", "frontend-react/package*.json", "backend/core/**"]
 
+permissions:
+  contents: write
+
 jobs:
   demo:
     strategy:
@@ -55,6 +58,13 @@ jobs:
         with:
           name: screenshots
           path: shots/
+      - name: Publish screenshots to the screenshots branch
+        if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
+        run: |
+          cd shots
+          git init -q -b screenshots && git add . 
+          git -c user.name=mahak867 -c user.email=mahakfahad07@gmail.com commit -qm "Feature screenshots"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" screenshots
       - name: Demo log
         if: always()
         run: tail -n 80 demo.log || true
