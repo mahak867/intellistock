@@ -68,9 +68,11 @@ def browser(kind: str) -> None:
         pg.wait_for_url("**/dashboard", timeout=60000)
         check(f"{kind}: signed in on a phone", True)
         check(f"{kind}: bottom navigation shown", pg.get_by_role("button", name="More").is_visible())
+        pg.wait_for_load_state("networkidle", timeout=60000)
         for path, text in (("/portfolio", "Portfolio"), ("/alerts", "Your alerts"), ("/tools", "Position size"), ("/broker", "Zerodha"), ("/help", "Questions")):
             pg.goto(WEB + path)
             pg.wait_for_selector(f"text={text}", timeout=60000)
+            pg.wait_for_load_state("networkidle", timeout=60000)  # let the page finish its requests, as a person reading it would
             w = pg.evaluate("[document.documentElement.scrollWidth, innerWidth]")
             check(f"{kind}: {path} renders without sideways scroll", w[0] <= w[1], w)
         pg.goto(WEB + "/tools?tool=fscreen")
