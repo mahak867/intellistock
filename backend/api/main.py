@@ -153,32 +153,7 @@ def create_app() -> FastAPI:
                 "to your real frontend origin(s)."
             )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-RateLimit-Remaining"],
-    )
-
-    # ── Trusted host ─────────────────────────────────────────────────────────
-    if settings.is_production:
-        if settings.ALLOWED_HOSTS == ["*"]:
-            logger.warning(
-                "ALLOWED_HOSTS is still the wildcard default in production — "
-                "Host header validation provides no protection until this "
-                "is set to your real domain(s)."
-            )
-        app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=settings.ALLOWED_HOSTS,
-        )
-
-    # ── Gzip compression ──────────────────────────────────────────────────────
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # ── Request ID + timing middleware ────────────────────────────────────────
+    # ── Request ID + timing middleware (registered before CORS so CORS wraps it: even a 500 carries CORS headers)
     @app.middleware("http")
     async def request_middleware(request: Request, call_next) -> Response:
         request_id = str(uuid.uuid4())
@@ -221,6 +196,31 @@ def create_app() -> FastAPI:
             f"→ {response.status_code} [{duration*1000:.1f}ms] [{request_id[:8]}]"
         )
         return response
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-ID", "X-RateLimit-Remaining"],
+    )
+
+    # ── Trusted host ─────────────────────────────────────────────────────────
+    if settings.is_production:
+        if settings.ALLOWED_HOSTS == ["*"]:
+            logger.warning(
+                "ALLOWED_HOSTS is still the wildcard default in production — "
+                "Host header validation provides no protection until this "
+                "is set to your real domain(s)."
+            )
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.ALLOWED_HOSTS,
+        )
+
+    # ── Gzip compression ──────────────────────────────────────────────────────
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # ── Prometheus metrics endpoint ───────────────────────────────────────────
     @app.get("/metrics", include_in_schema=False)

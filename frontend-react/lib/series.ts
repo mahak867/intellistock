@@ -45,6 +45,7 @@ export function useSeries(ticker: string, horizon: number): Series | null {
           return;
         }
       } catch { /* API offline or timed out: try the next source */ }
+      if (off) return; // the page moved on: do not start more requests
       if (token && token !== "demo") {
         try {
           const [o, p] = await Promise.all([getOhlcv(token, ticker, 260), getPrediction(token, ticker, horizon)]);
