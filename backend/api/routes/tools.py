@@ -6,6 +6,8 @@ from dataclasses import asdict
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from backend.api.routes.auth import get_current_user
@@ -15,6 +17,7 @@ from backend.tools import announcements as AN
 from backend.tools import calendar as CAL
 from backend.tools import costs as CO
 from backend.tools import fundamentals as FU
+from backend.tools import fundscreen as FS
 from backend.tools import journal as J
 from backend.tools import options as O
 from backend.tools import planner as PL
@@ -292,6 +295,27 @@ def tax_gains(fills: list[FillIn]):
 @router.post("/fundamentals/score")
 def fundamentals_score(f: dict[str, float | None]):
     return FU.quality_score(f)
+
+
+class FundFilter(BaseModel):
+    field: Literal[FS.FIELDS]  # type: ignore[valid-type]
+    min: float | None = Field(default=None, allow_inf_nan=False, ge=-1e12, le=1e12)
+    max: float | None = Field(default=None, allow_inf_nan=False, ge=-1e12, le=1e12)
+
+
+class FundScreenIn(BaseModel):
+    csv: str = Field(max_length=3_000_000)
+    filters: list[FundFilter] = Field(default_factory=list, max_length=FS.MAX_FILTERS)
+    sort: str = "quality"
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+@router.post("/screener/fundamentals", summary="Filter and rank stocks on fundamentals from your own CSV")
+def screener_fundamentals(b: FundScreenIn):
+    try:
+        return FS.screen(b.csv, [f.model_dump() for f in b.filters], b.sort, b.limit)
+    except ValueError as e:
+        _bad(e)
 
 
 class AnnIn(BaseModel):

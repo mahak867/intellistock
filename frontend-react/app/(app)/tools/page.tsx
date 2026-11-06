@@ -82,6 +82,7 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
     );
   }
   if (tool.view === "screener") return <Screener data={data} />;
+  if (tool.view === "fundscreen") return <FundScreen data={data} />;
   if (tool.view === "portrisk") {
     const a = data.allocation, m = Object.keys(data.correlation.matrix);
     return (
@@ -112,6 +113,24 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
   if (tool.id === "check") return <div className={cn("rounded-xl border p-4 text-sm", data.pass ? "border-success/50" : "border-destructive/50")}><div className={cn("font-display text-xl font-semibold", data.pass ? "text-success" : "text-destructive")}>{data.pass ? "Clear to trade" : "Do not enter yet"}</div>{[...data.blocking, ...data.warnings].map((t: string) => <div key={t} className="mt-1 text-muted-foreground">{data.blocking.includes(t) ? "Blocking" : "Warning"}: {t}</div>)}</div>;
   if (tool.id === "day") return <div className="space-y-3"><div className={cn("font-display text-xl font-semibold", data.level === "stop" ? "text-destructive" : data.level === "warn" ? "text-warning" : "text-success")}>{data.level === "stop" ? "Stop trading today" : data.level === "warn" ? "Slow down" : "Within limits"}</div><Generic data={data} /></div>;
   return <Generic data={data} />;
+}
+
+function FundScreen({ data }: { data: { total: number; matched: number; shown: number; rows: Record<string, unknown>[]; left_out_for_missing_data: Record<string, number>; filters_on_missing_columns: string[]; columns_recognised: Record<string, string>; note: string } }) {
+  const left = Object.entries(data.left_out_for_missing_data).filter(([, n]) => n > 0);
+  return (
+    <div className="space-y-3">
+      <p className="text-sm"><span className="font-num font-semibold">{data.matched}</span> of <span className="font-num">{data.total}</span> stocks match{data.shown < data.matched ? `, showing the first ${data.shown}` : ""}.</p>
+      {data.filters_on_missing_columns.length > 0 && (
+        <div role="alert" className="rounded-lg border border-warning/50 bg-warning/10 px-3 py-2 text-sm text-warning">
+          Your file has no column for {data.filters_on_missing_columns.join(", ")}, so nothing can match that filter.
+        </div>
+      )}
+      {left.length > 0 && <p className="text-xs text-muted-foreground">Left out for a missing number: {left.map(([k, n]) => `${n} without ${k.replace(/_/g, " ")}`).join(", ")}.</p>}
+      <p className="text-xs text-muted-foreground">Columns read: {Object.entries(data.columns_recognised).map(([k, c]) => `${c} as ${k.replace(/_/g, " ")}`).join("; ")}. Quality score coverage shows how many of its inputs your file had.</p>
+      <Table rows={data.rows} max={100} />
+      <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">{data.note}</p>
+    </div>
+  );
 }
 
 function Screener({ data }: { data: { rows: Record<string, unknown>[]; synthetic: boolean; as_of: string; universe: number } }) {

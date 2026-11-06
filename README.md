@@ -12,9 +12,9 @@
 
 ## 🎯 Overview
 
-IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to generate actionable trading signals.
+IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to show likely price ranges, risk and costs for Indian stocks.
 
-**Status, honestly:** a working full-stack app with a real API, authentication, 187 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
+**Status, honestly:** a working full-stack app with a real API, authentication, 212 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
 
 ---
 
@@ -23,14 +23,17 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | Category | Features |
 |---|---|
 | **ML/AI** | BiLSTM + Attention, GRU baseline, 30+ technical features, NIFTY50 macro input |
-| **Signals** | BUY/SELL/HOLD with confidence scores, RSI + MACD confirmation |
+| **Signals** | Legacy BUY/SELL/HOLD endpoints from the old LSTM. The new screens show price ranges instead, because the direction forecast showed no edge in testing (see Measured accuracy) |
+| **Alerts** | Price-above, price-below and unusually-wide-day alerts, checked on the latest end-of-day close every 30 minutes (Celery beat). Telegram delivery uses your own bot token and has only been tested against a mock, not a live bot. Nothing is sent off-app while prices are placeholders or unlicensed |
+| **Fundamentals screener** | Filter and rank stocks on a CSV you export (for example from Screener.in): P/E, ROE, ROCE, debt/equity, promoter holding, growth. IntelliStock ships no fundamentals data |
+| **Mobile** | Phone layout with a bottom bar, installable from the browser (Add to Home Screen). No offline mode on purpose. Checked in an emulated 390px browser, not on a real phone |
 | **API** | FastAPI, JWT auth, refresh tokens, rate limiting, Redis caching |
 | **Security** | BCrypt passwords, token revocation, HTTPS-only headers, CORS, rate limits |
 | **Data** | NSE holiday calendar, yfinance with retry, parquet caching, 5Y historical |
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
 | **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 187 automated tests (pytest) — tools, data layer, API, backtest, security |
+| **Testing** | 212 automated tests (pytest) — tools, data layer, API, backtest, security |
 
 ---
 
@@ -203,6 +206,22 @@ python scripts/demo.py
 ```
 
 The first run installs and builds the web app (a few minutes). Then open http://localhost:3000 and sign in with `demo@example.com` / `Demo-Pass-2026!`. The demo uses a SQLite file (`data/demo.sqlite3`) and an in-memory cache, comes with a sample watchlist and portfolio, and shows **placeholder prices** (the app says so on screen). `DEMO_LITE` is refused outside `ENVIRONMENT=development`. Press Ctrl+C to stop.
+
+## 📏 Measured accuracy (real NSE prices)
+
+`python scripts/evaluate_real.py --dir <folder of CSVs>` runs the app's own walk-forward test (train on the past, predict forward, never peek) on a folder of daily price files and prints a scorecard. On 48 large-cap NSE stocks, 2016 to 2026 (a public GitHub dataset; it has no licence, so it is not included here):
+
+| Test | 5 days | 10 days | 20 days |
+|---|---|---|---|
+| Direction hit rate (always-up baseline) | 50.6% (53.1%) | 50.9% (54.5%) | 50.8% (56.4%) |
+| Stocks passing the edge test (luck alone gives about 1) | 0 of 48 | 0 of 48 | 0 of 48 |
+| Volatility forecast beats the naive baseline | 44 of 48 | 34 of 48 | 31 of 48 |
+
+The 80% price range held 84.6% of the time on newer data at 10 days (72% to 92% by stock; quantiles fitted on the older half, scored on the newer half). Reading: **the direction forecast has no demonstrated edge, so the app does not show Buy or Sell; the volatility range is the part that works.** Many stocks were tested, so a couple of "wins" would be expected by luck alone. Only 10-day coverage was re-measured with the holdout method. Prices are used as the dataset provides them; a few jumps over 25% in a day (mostly March 2020) are real moves, but unadjusted splits cannot be ruled out.
+
+## Alerts
+
+Create alerts on the **Alerts** page. A Celery beat task checks them every `ALERT_CHECK_MINUTES` (default 30) against the latest end-of-day close; prices are never live. To send them to Telegram, create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN`, and each user saves their own chat id on the Alerts page. Delivery code is tested against a mock only. While prices are placeholders or unlicensed, alerts are labelled and shown in the app only.
 
 ## 🗄️ Database migrations
 

@@ -8,7 +8,7 @@ export type Tool = {
   method: "POST" | "GET"; path: string; demoData?: boolean; fields: Field[];
   build: (v: Record<string, string>) => unknown | null; // null for GET
   pathFor?: (v: Record<string, string>) => string;
-  view?: "payoff" | "backtest" | "screener" | "portrisk";
+  view?: "payoff" | "backtest" | "screener" | "portrisk" | "fundscreen";
 };
 
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
@@ -177,6 +177,30 @@ export const TOOLS: Tool[] = [
       { name: "cash", label: "New money to add", type: "number", def: "0" },
     ],
     build: (v) => { const r = csvRows(v.rows); return { values: Object.fromEntries(r.map(([n, val]) => [n, +val])), targets: Object.fromEntries(r.map(([n, , t]) => [n, +t / 100])), new_cash: num(v.cash) ?? 0 }; },
+  },
+  {
+    id: "fscreen", group: "Investor", title: "Fundamentals screener", method: "POST", path: "/tools/screener/fundamentals", view: "fundscreen",
+    blurb: "IntelliStock has no fundamentals feed, so bring your own: export a screen from Screener.in (or any CSV with a name column and columns like P/E, ROE, ROCE, Debt / Eq) and paste it. Filters use your numbers exactly. Stocks missing a number you filter on are left out and counted.",
+    fields: [
+      { name: "csv", label: "Your fundamentals CSV", type: "textarea", rows: 8, def: `Name,P/E,ROE %,ROCE %,Debt / Eq,Prom. Hold. %,Profit Var 3Yrs %,Mar Cap Rs.Cr.
+SAMPLE-A (made up),12.5,18,22,0.1,60,15,5000
+SAMPLE-B (made up),45,6,8,1.8,30,-2,900
+SAMPLE-C (made up),22,25,30,0.0,70,40,100` },
+      { name: "roe_min", label: "ROE at least %", type: "number", def: "15", optional: true },
+      { name: "roce_min", label: "ROCE at least %", type: "number", def: "", optional: true },
+      { name: "pe_max", label: "P/E at most", type: "number", def: "", optional: true },
+      { name: "de_max", label: "Debt / equity at most", type: "number", def: "0.5", optional: true },
+      { name: "prom_min", label: "Promoter holding at least %", type: "number", def: "", optional: true },
+      { name: "growth_min", label: "3-year profit growth at least %", type: "number", def: "", optional: true },
+      { name: "sort", label: "Sort by", type: "select", options: ["quality", "roe", "roce", "pe", "debt_equity", "promoter_holding", "profit_cagr_3y", "market_cap_cr"], def: "quality" },
+    ],
+    build: (v) => {
+      const f: { field: string; min?: number; max?: number }[] = [];
+      const add = (field: string, key: string, kind: "min" | "max") => { const n = num(v[key]); if (n !== undefined && Number.isFinite(n)) f.push({ field, [kind]: n }); };
+      add("roe", "roe_min", "min"); add("roce", "roce_min", "min"); add("pe", "pe_max", "max");
+      add("debt_equity", "de_max", "max"); add("promoter_holding", "prom_min", "min"); add("profit_cagr_3y", "growth_min", "min");
+      return { csv: v.csv, filters: f, sort: v.sort, limit: 100 };
+    },
   },
   {
     id: "fund", group: "Investor", title: "Quality score", method: "POST", path: "/tools/fundamentals/score",

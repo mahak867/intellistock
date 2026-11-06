@@ -75,6 +75,7 @@ class User(Base, TimestampMixin):
     api_key_hash = Column(
         String(255), nullable=True, unique=True
     )  # for programmatic access
+    telegram_chat_id = Column(String(32), nullable=True)  # where alert messages go (Telegram)
 
     # Relationships
     watchlist_items = relationship(
@@ -249,7 +250,7 @@ class AlertRule(Base, TimestampMixin):
     ticker = Column(String(20), nullable=False)
     alert_type = Column(
         String(20), nullable=False
-    )  # "signal" | "price_above" | "price_below"
+    )  # "price_above" | "price_below" | "vol_spike" (legacy rows may say "signal"; those are never evaluated)
     signal_filter = Column(
         String(10), nullable=True
     )  # BUY | SELL | HOLD (for signal alerts)
@@ -258,3 +259,21 @@ class AlertRule(Base, TimestampMixin):
     is_active = Column(Boolean, nullable=False, default=True)
     last_triggered = Column(DateTime(timezone=True), nullable=True)
     trigger_count = Column(Integer, nullable=False, default=0)
+    last_message = Column(String(300), nullable=True)  # what the last trigger said
+
+
+# ─── Feedback ────────────────────────────────────────────────────────────────────
+
+
+class Feedback(Base, TimestampMixin):
+    """A note from a user: a bug, a wrong number, a missing feature."""
+
+    __tablename__ = "feedback"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    category = Column(String(20), nullable=False)  # bug | data | feature | other
+    page = Column(String(100), nullable=True)
+    message = Column(Text, nullable=False)

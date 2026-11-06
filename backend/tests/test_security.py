@@ -72,7 +72,7 @@ class TestTickerValidation:
                 PortfolioAddRequest,
                 {"quantity": 10, "avg_buy_price": 100.0, "buy_date": "2026-01-01T00:00:00Z"},
             ),
-            (AlertAddRequest, {"alert_type": "signal"}),
+            (AlertAddRequest, {"alert_type": "price_above", "price_target": 100.0}),
         ],
     )
     def test_ticker_over_20_chars_rejected(self, schema_cls, extra_fields):
@@ -87,7 +87,7 @@ class TestTickerValidation:
                 PortfolioAddRequest,
                 {"quantity": 10, "avg_buy_price": 100.0, "buy_date": "2026-01-01T00:00:00Z"},
             ),
-            (AlertAddRequest, {"alert_type": "signal"}),
+            (AlertAddRequest, {"alert_type": "price_above", "price_target": 100.0}),
         ],
     )
     def test_ticker_with_injection_style_characters_rejected(self, schema_cls, extra_fields):
@@ -135,7 +135,7 @@ class TestNumericBounds:
 
     def test_alert_rejects_confidence_outside_zero_one(self):
         with pytest.raises(Exception):
-            AlertAddRequest(ticker="RELIANCE", alert_type="signal", min_confidence=1.5)
+            AlertAddRequest(ticker="RELIANCE", alert_type="price_above", price_target=10.0, min_confidence=1.5)
 
     def test_alert_rejects_negative_price_target(self):
         with pytest.raises(Exception):

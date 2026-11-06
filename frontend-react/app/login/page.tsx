@@ -52,7 +52,7 @@ export default function LoginPage() {
   const field = "h-11 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30";
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       <section className="relative hidden overflow-hidden border-r border-border bg-sidebar lg:block">
         <Backdrop />
         <div className="relative flex h-full flex-col justify-between p-12">

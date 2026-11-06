@@ -1,10 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "IntelliStock — NSE/BSE Market Intelligence",
-  description: "LSTM-powered price forecasting and trading signals for Indian equities.",
+  description: "Price ranges, risk tools and alerts for Indian equities. End-of-day data, not advice.",
+  icons: { apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "IntelliStock", statusBarStyle: "black-translucent" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets env(safe-area-inset-*) work behind notches and home bars
+  colorScheme: "dark",
+  themeColor: "#0a0a10",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

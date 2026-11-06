@@ -150,3 +150,20 @@ body {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── Phones and touch screens ───────────────────────────────────────────── */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  background: var(--background);
+}
+/* Inputs under 16px make iOS Safari zoom the page on focus. */
+@media (pointer: coarse) {
+  input, textarea, select { font-size: 16px !important; }
+}
+/* Pressable controls: no double-tap delay, no accidental text selection on long press. */
+button, a, [role="button"], summary { touch-action: manipulation; }
+button, [role="button"], .tap { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tap:active { background: var(--accent); }
+/* Wide tables and charts scroll inside their own box, not the page. */
+.overflow-x-auto { overscroll-behavior-x: contain; }

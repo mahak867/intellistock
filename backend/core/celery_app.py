@@ -38,6 +38,10 @@ celery_app.conf.update(
             "task": "backend.core.celery_app.retrain_models",
             "schedule": settings.RETRAIN_INTERVAL_HOURS * 3600,
         },
+        "check-alerts": {
+            "task": "backend.core.celery_app.check_alerts",
+            "schedule": settings.ALERT_CHECK_MINUTES * 60,
+        },
     },
 )
 
@@ -76,3 +80,13 @@ def retrain_models() -> list[str]:
     for t in tickers:
         retrain_model.delay(t)
     return tickers
+
+
+@celery_app.task(name="backend.core.celery_app.check_alerts")
+def check_alerts() -> dict:
+    """Scheduled: check every active alert rule against the latest end-of-day prices."""
+    from backend.services.alert_service import check_alerts_sync
+
+    out = check_alerts_sync()
+    logger.info(f"alerts: {out['checked']} checked, {len(out['fired'])} fired, {len(out['skipped'])} skipped")
+    return out

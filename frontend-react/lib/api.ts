@@ -251,15 +251,71 @@ export async function updateProfile(token: string, fullName: string) {
   });
 }
 
+export type AlertType = "price_above" | "price_below" | "vol_spike";
+
+export interface AlertRow {
+  id: string;
+  ticker: string;
+  alert_type: string;
+  price_target: number | null;
+  is_active: boolean;
+  trigger_count: number;
+  last_triggered: string | null;
+  last_message: string | null;
+}
+
+export interface AlertCheck {
+  checked: number;
+  fired: { id: string; ticker: string; message: string; delivered: boolean | null }[];
+  skipped: { ticker: string; reason: string | null }[];
+  data_source: string;
+  real_data: boolean;
+}
+
+export interface AlertSettings {
+  telegram_chat_id: string | null;
+  telegram_available: boolean;
+  real_data: boolean;
+  check_every_minutes: number;
+  note: string;
+}
+
 export async function getAlerts(token: string) {
-  return request<{
-    alerts: {
-      id: string;
-      ticker: string;
-      alert_type: string;
-      is_active: boolean;
-      trigger_count: number;
-    }[];
-    count: number;
-  }>("/users/alerts", token);
+  return request<{ alerts: AlertRow[]; count: number }>("/users/alerts", token);
+}
+
+export async function addAlert(token: string, a: { ticker: string; alert_type: AlertType; price_target: number }) {
+  return request<{ message: string; id: string }>("/users/alerts", token, { method: "POST", body: JSON.stringify(a) });
+}
+
+export async function removeAlert(token: string, id: string) {
+  return request(`/users/alerts/${id}`, token, { method: "DELETE" });
+}
+
+export async function rearmAlert(token: string, id: string) {
+  return request(`/users/alerts/${id}/rearm`, token, { method: "POST" });
+}
+
+export async function checkAlerts(token: string) {
+  return request<AlertCheck>("/users/alerts/check", token, { method: "POST" });
+}
+
+export async function getAlertSettings(token: string) {
+  return request<AlertSettings>("/users/alerts/settings", token);
+}
+
+export async function saveTelegramChat(token: string, chatId: string) {
+  return request("/users/me", token, { method: "PATCH", body: JSON.stringify({ telegram_chat_id: chatId }) });
+}
+
+export async function testTelegram(token: string) {
+  return request<{ message: string }>("/users/alerts/test-telegram", token, { method: "POST" });
+}
+
+export async function sendFeedback(token: string, f: { category: "bug" | "data" | "feature" | "other"; message: string; page?: string }) {
+  return request<{ message: string; id: string }>("/users/feedback", token, { method: "POST", body: JSON.stringify(f) });
+}
+
+export async function getMarketStatus(token: string | null) {
+  return request<{ provider: string; real_data: boolean; licensed_to_serve: boolean; note: string; last?: string; symbols?: number }>("/market/status", token);
 }

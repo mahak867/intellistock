@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     PREDICTION_HORIZON: int = 5  # predict next 5 days
     RETRAIN_INTERVAL_HOURS: int = 24
 
+    # ── Alerts ──────────────────────────────────────────────────────────────
+    ALERT_CHECK_MINUTES: int = 30
+    TELEGRAM_BOT_TOKEN: str | None = None  # create a bot with @BotFather; users add their own chat id in Settings
+
     # ── Cloud Storage ───────────────────────────────────────────────────────
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None

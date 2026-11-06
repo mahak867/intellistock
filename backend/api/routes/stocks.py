@@ -179,7 +179,7 @@ async def remove_from_watchlist(
     from backend.services.stock_service import StockService
 
     deleted = await StockService.remove_watchlist(
-        item_id=item_id, user_id=current_user["sub"]
+        item_id=str(item_id), user_id=current_user["sub"]
     )
     if not deleted:
         raise HTTPException(status_code=404, detail="Watchlist item not found")
