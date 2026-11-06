@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timedelta
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -24,8 +25,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 # ── Constants ───────────────────────────────────────────────────────────────────
 
-CACHE_DIR = Path(".cache/market_data")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+# Created on first write, not at import: importing this module must not need a writable working directory
+# (the Docker image runs as a non-root user and failed to start when this ran at import time).
+CACHE_DIR = Path(os.environ.get("MARKET_CACHE_DIR", ".cache/market_data"))
 
 NSE_SUFFIX = ".NS"
 BSE_SUFFIX = ".BO"
@@ -156,7 +158,11 @@ def fetch_ohlcv(
         logger.warning(f"{ticker}: only {df.shape[0]} rows — less than 1 year of data")
 
     # ── Cache write ──────────────────────────────────────────────────────────
-    df.to_parquet(cache_file)
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(cache_file)
+    except OSError as e:  # a read-only disk only loses the cache, never the data
+        logger.warning(f"Could not cache {ticker}: {e}")
     logger.info(f"Fetched {len(df)} rows for {ticker}")
     return df
 

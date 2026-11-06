@@ -197,6 +197,7 @@ def train(args: argparse.Namespace) -> dict:
         "ticker": args.ticker,
         "exchange": args.exchange,
         "trained_at": datetime.utcnow().isoformat(),
+        "keras_version": __import__("keras").__version__,  # a model loads reliably only with the same Keras version
         "best_model": best_metrics["model"],
         "metrics": best_metrics,
         "all_metrics": all_metrics,

@@ -28,6 +28,13 @@ _LOADED_MODELS: dict[str, dict[str, Any]] = {}
 
 
 class ModelService:
+    @staticmethod
+    def _saved_keras_version(meta_path) -> str | None:
+        try:
+            return json.loads(Path(meta_path).read_text()).get("keras_version")
+        except Exception:
+            return None
+
     """Loads/serves trained BiLSTM/GRU models for inference."""
 
     @classmethod
@@ -65,7 +72,11 @@ class ModelService:
             try:
                 cls._load_one(ticker, meta_path)
             except Exception as exc:
-                logger.error(f"Failed to load model for {ticker}: {exc}")
+                saved = cls._saved_keras_version(meta_path)
+                import keras
+                hint = (f" It was saved with Keras {saved}; this server runs {keras.__version__}. Retrain it here (python train.py "
+                        f"--ticker {ticker}) or run the version it was trained with." if saved and saved != keras.__version__ else "")
+                logger.error(f"Failed to load model for {ticker}: {str(exc)[:300]}{hint}")
 
         logger.info(
             f"ModelService: loaded {len(_LOADED_MODELS)} model(s) → "
