@@ -1,0 +1,33 @@
+name: Account Aggregator sandbox check
+
+# Needs repository secrets SETU_AA_CLIENT_ID, SETU_AA_CLIENT_SECRET, SETU_AA_PRODUCT_INSTANCE_ID (Setu SANDBOX keys only).
+# Run once with no consent id to get an approval link; approve it; run again with that consent id.
+on:
+  workflow_dispatch:
+    inputs:
+      consent_id:
+        description: "Consent id from the first run (leave empty to create one)"
+        required: false
+      mobile:
+        description: "Sandbox mobile number"
+        required: false
+        default: "9999999999"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      SETU_AA_BASE: https://fiu-sandbox.setu.co
+      SETU_AA_CLIENT_ID: ${{ secrets.SETU_AA_CLIENT_ID }}
+      SETU_AA_CLIENT_SECRET: ${{ secrets.SETU_AA_CLIENT_SECRET }}
+      SETU_AA_PRODUCT_INSTANCE_ID: ${{ secrets.SETU_AA_PRODUCT_INSTANCE_ID }}
+      CONSENT_ID: ${{ inputs.consent_id }}
+      SECRET_KEY: ci-only-secret-key-0123456789abcdef0123
+      DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install httpx==0.27.0 pydantic-settings==2.3.1 pydantic==2.7.1 email-validator==2.1.1 loguru
+      - run: PYTHONPATH=. python scripts/aa_sandbox_check.py "${{ inputs.mobile }}"
