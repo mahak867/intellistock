@@ -54,12 +54,13 @@ def get_nse_trading_days(start: str, end: str) -> pd.DatetimeIndex:
     try:
         nse_cal = mcal.get_calendar("NSE")
         schedule = nse_cal.schedule(start_date=start, end_date=end)
-        return mcal.date_range(schedule, frequency="1D").tz_localize(None)
+        # date_range gives session-close timestamps (e.g. 10:00 UTC); compare by calendar date only.
+        return pd.DatetimeIndex(schedule.index).tz_localize(None).normalize()
     except Exception as exc:
         logger.warning(
             f"NSE calendar unavailable ({exc}), falling back to weekday filter"
         )
-        return pd.bdate_range(start=start, end=end)
+        return pd.bdate_range(start=start, end=end).normalize()
 
 
 # ── Raw data fetch ──────────────────────────────────────────────────────────────
@@ -133,7 +134,10 @@ def fetch_ohlcv(
 
     # ── Keep only OHLCV ─────────────────────────────────────────────────────
     df = raw[OHLCV_COLS].copy()
-    df.index = pd.to_datetime(df.index).tz_localize(None)
+    idx = pd.to_datetime(df.index)
+    if idx.tz is not None:  # newer yfinance returns exchange-local timestamps
+        idx = idx.tz_convert("Asia/Kolkata").tz_localize(None)
+    df.index = idx.normalize()
     df.index.name = "Date"
 
     # ── Align to trading calendar ────────────────────────────────────────────
