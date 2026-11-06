@@ -245,7 +245,9 @@ def create_app() -> FastAPI:
 
     app.include_router(market.router, prefix=f"{API_V1}/market", tags=["Market data"])
 
-    from backend.api.routes import broker, funds, investor
+    from backend.api.routes import assets, broker, funds, investor
+
+    app.include_router(assets.router, prefix=f"{API_V1}/assets", tags=["Assets"])
 
     app.include_router(funds.router, prefix=f"{API_V1}/funds", tags=["Mutual funds"])
 

@@ -14,15 +14,18 @@ call("POST","/users/portfolio",{"ticker":"ITC","quantity":100,"avg_buy_price":40
 call("POST","/users/corporate-actions",{"ticker":"TCS","kind":"dividend","ex_date":"2025-07-16","amount":11},t)
 call("POST","/users/corporate-actions",{"ticker":"RELIANCE","kind":"bonus","ex_date":"2025-10-28","ratio_new":1,"ratio_old":1},t)
 for s,l in (("HDFCBANK","Banks"),("ICICIBANK","Banks"),("SBIN","Banks")): call("POST","/stocks/watchlist",{"ticker":s,"list_name":l},t)
+call("POST","/assets",{"kind":"fd","name":"SBI FD 2027","amount":200000,"rate":7.1,"start_date":"2025-01-15","maturity_date":"2027-01-15"},t)
+call("POST","/assets",{"kind":"bank","name":"HDFC savings xx4521","amount":84250},t)
+call("POST","/assets",{"kind":"ppf","name":"PPF","amount":350000,"account":"Mom"},t)
 call("POST","/users/alerts",{"ticker":"TCS","alert_type":"price_above","price_target":1},t); call("POST","/users/alerts/check",None,t)
 with sync_playwright() as p:
     b=p.chromium.launch()
     for name,ctx in (("desk",dict(viewport={"width":1440,"height":900},device_scale_factor=2)),("phone",dict(**p.devices["iPhone 14"]))):
         c=b.new_context(**ctx); pg=c.new_page()
         pg.goto(W+"/login"); pg.fill("#email","demo@example.com"); pg.fill("#password","Demo-Pass-2026!"); pg.click("button[type=submit]"); pg.wait_for_url("**/dashboard")
-        pages=[("dashboard","/dashboard",None),("portfolio","/portfolio","text=Dividends, bonuses and splits"),("funds","/funds","text=Import a CAS statement"),
+        pages=[("dashboard","/dashboard",None),("portfolio","/portfolio","text=Dividends, bonuses and splits"),("funds","/funds","text=Import a CAS statement"),("networth","/networth","text=NSDL / CDSL statement"),
                ("research","/research?ticker=TCS","text=Exchange announcements"),("taxlots","/tools?tool=taxlots",None),("broker","/broker","text=Zerodha"),("alerts","/alerts","text=Your alerts"),("help","/help","text=Questions")]
-        if name=="phone": pages=[pages[0],pages[1],pages[4],pages[6]]
+        if name=="phone": pages=[pages[0],pages[1],pages[3],pages[5],pages[7]]
         for n,path,wait in pages:
             pg.goto(W+path)
             if wait: pg.wait_for_selector(wait,timeout=60000)

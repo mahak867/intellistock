@@ -52,7 +52,12 @@ def holdings_from(cas: dict) -> tuple[list[dict], list[str]]:
             out.append({"folio": str(folio.get("folio") or "")[:40], "amc": folio.get("amc"), "scheme_name": str(s.get("scheme") or "")[:200],
                         "isin": s.get("isin"), "scheme_code": str(s.get("amfi") or "") or None, "units": units,
                         "invested": _f(val.get("cost")), "last_nav": _f(val.get("nav")), "last_nav_date": _d(val.get("date")), "transactions": txns})
-    for m in cas.get("mutual_funds") or []:  # NSDL / CDSL statements
+    if cas.get("accounts") is not None:  # NSDL / CDSL statements: funds sit inside each demat account
+        from backend.tools.assets import depository_assets
+
+        out += depository_assets(cas)["funds"]
+        notes.append("Depository (NSDL/CDSL) statements list holdings without transactions, so XIRR is not available for them.")
+    for m in cas.get("mutual_funds") or []:  # older flat layout
         out.append({"folio": "", "amc": None, "scheme_name": str(m.get("name") or m.get("isin"))[:200], "isin": m.get("isin"),
                     "scheme_code": str(m.get("amfi") or "") or None, "units": _f(m.get("balance")) or 0.0, "invested": _f(m.get("total_cost")),
                     "last_nav": _f(m.get("nav")), "last_nav_date": None, "transactions": []})

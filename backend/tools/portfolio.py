@@ -12,7 +12,9 @@ def parse_holdings(csv_text: str) -> pd.DataFrame:
     df = pd.read_csv(io.StringIO(csv_text))
     low = {c.lower().strip(): c for c in df.columns}
     pick = lambda *n: next((low[x] for x in n if x in low), None)  # noqa: E731
-    sym, qty, avg = pick("symbol", "instrument", "scrip"), pick("qty", "quantity"), pick("avg_price", "average price", "avg cost", "avg. cost", "average_price")
+    sym = pick("symbol", "instrument", "scrip", "tradingsymbol", "stock symbol", "nse symbol", "stock name", "stock", "scrip name", "company name")
+    qty = pick("qty", "qty.", "quantity", "shares", "quantity available", "net qty", "holding qty")
+    avg = pick("avg_price", "average price", "avg cost", "avg. cost", "average_price", "avg price", "average buy price", "buy avg", "avg. price", "buy average", "average cost price")
     if not (sym and qty and avg):
         raise ValueError(f"CSV needs symbol, qty and avg_price columns. Found: {list(df.columns)}")
     sec = pick("sector")

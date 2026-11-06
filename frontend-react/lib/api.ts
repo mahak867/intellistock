@@ -394,3 +394,20 @@ export interface Fundamentals { symbol: string; name: string | null; sector: str
 export interface NewsView { ticker: string; news: { title: string; url: string; source: string | null; published: string | null }[]; announcements: { title: string; detail: string; url: string | null; published: string | null }[]; errors: string[] }
 export const getFundamentals = (token: string | null, t: string) => request<Fundamentals>(`/market/fundamentals/${encodeURIComponent(t)}`, token);
 export const getNews = (token: string | null, t: string) => request<NewsView>(`/market/news/${encodeURIComponent(t)}`, token);
+
+// ── Assets and net worth ─────────────────────────────────────────────────
+export interface OtherAssetRow { id: string; account: string; kind: string; name: string; amount: number; value: number; rate: number | null; start_date: string | null; maturity_date: string | null; as_of: string | null; source: string; matured: boolean }
+export interface NetWorth { stocks: number | null; funds: number; other: number; total: number | null; by_kind: Record<string, number>; by_person: { account: string; stocks: number | null; funds: number; other: number; total: number | null }[]; stock_prices: string; note: string | null }
+export const getAssets = (token: string) => request<{ assets: OtherAssetRow[]; net_worth: NetWorth; as_of: string }>("/assets", token);
+export const addAsset = (token: string, a: { kind: string; name: string; amount: number; rate?: number | null; start_date?: string | null; maturity_date?: string | null; account?: string }) =>
+  request<OtherAssetRow>("/assets", token, { method: "POST", body: JSON.stringify(a) });
+export const deleteAsset = (token: string, id: string) => request(`/assets/${id}`, token, { method: "DELETE" });
+export async function uploadAssetFile(token: string, path: "import-bank" | "import-holdings" | "import-depository", file: File, fields: Record<string, string>) {
+  const fd = new FormData();
+  fd.append("file", file);
+  for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+  const res = await fetch(`${API_BASE}/assets/${path}`, { method: "POST", body: fd, headers: { Authorization: `Bearer ${token}` } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, formatDetail(body?.detail, `Import failed (${res.status})`));
+  return body as Record<string, unknown> & { message?: string; note?: string };
+}

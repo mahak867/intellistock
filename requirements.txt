@@ -21,6 +21,8 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1                 # passlib 1.7.4 breaks on bcrypt>=4.1 (missing __about__)
 python-multipart==0.0.9
 casparser==1.4.1              # reads CAMS/KFintech/NSDL/CDSL CAS statements (MIT)
+openpyxl==3.1.5               # read .xlsx bank statements and broker exports
+xlrd==2.0.1                   # read old .xls bank statements
 httpx==0.27.0
 slowapi==0.1.9                # rate limiting
 redis==5.0.6

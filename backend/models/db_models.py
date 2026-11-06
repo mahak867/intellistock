@@ -380,3 +380,24 @@ class FundTransaction(Base, TimestampMixin):
     kind = Column(String(20), nullable=False)
     amount = Column(Float, nullable=False)   # negative = money in, positive = money out
     units = Column(Float, nullable=False)
+
+
+# ─── Other assets (bank, FD, PPF, EPF, NPS, bonds, gold...) ───────────────────────
+
+
+class OtherAsset(Base, TimestampMixin):
+    __tablename__ = "other_assets"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    account = Column(String(40), nullable=False, default="Me", server_default="Me")
+    kind = Column(String(20), nullable=False)
+    name = Column(String(100), nullable=False)
+    amount = Column(Float, nullable=False)         # balance, principal or current value
+    rate = Column(Float, nullable=True)            # FD/RD/PPF interest rate, % a year
+    start_date = Column(Date, nullable=True)
+    maturity_date = Column(Date, nullable=True)
+    as_of = Column(Date, nullable=True)            # date of the balance (bank statements)
+    source = Column(String(20), nullable=False, default="manual")  # manual | bank_statement | cas
