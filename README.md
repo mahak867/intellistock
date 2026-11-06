@@ -1,7 +1,7 @@
 # 📈 IntelliStock
 ### NSE/BSE Market Intelligence Platform
 
-> **LSTM-powered Indian stock market forecasting with BUY/SELL/HOLD signal generation, deployed on cloud infrastructure with enterprise-grade security.**
+> **One place for an Indian investor: stocks, mutual funds, bank accounts and deposits, with honest price ranges (not buy/sell tips), tax-lot harvesting, alerts and Zerodha integration.**
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.20-orange)](https://tensorflow.org)
