@@ -75,7 +75,15 @@ class Settings(BaseSettings):
 
     # ── Alerts ──────────────────────────────────────────────────────────────
     ALERT_CHECK_MINUTES: int = 30
-    TELEGRAM_BOT_TOKEN: str | None = None  # create a bot with @BotFather; users add their own chat id in Settings
+    TELEGRAM_BOT_TOKEN: str | None = None
+
+    # ── Broker (Zerodha Kite Connect; each user brings their own app keys) ──
+    KITE_API_BASE: str = "https://api.kite.trade"
+    KITE_LOGIN_BASE: str = "https://kite.zerodha.com"
+    # Key that encrypts users' broker secrets and tokens at rest. Defaults to one derived from SECRET_KEY;
+    # set it separately so rotating SECRET_KEY does not disconnect every broker.
+    BROKER_ENCRYPTION_KEY: str | None = None
+    BROKER_ORDERS_ENABLED: bool = True  # set false to allow holdings and quotes only
 
     # ── Cloud Storage ───────────────────────────────────────────────────────
     AWS_ACCESS_KEY_ID: str | None = None

@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (user?.full_name) setFullName(user.full_name);
+    if (user?.full_name) Promise.resolve().then(() => setFullName(user.full_name));
   }, [user]);
 
   const onSave = async (e: React.FormEvent) => {

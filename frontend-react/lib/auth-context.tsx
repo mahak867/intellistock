@@ -29,18 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const stored = window.localStorage.getItem("intellistock_token");
-    if (stored) {
-      setToken(stored);
-      getMe(stored)
-        .then(setUser)
-        .catch(() => {
-          window.localStorage.removeItem("intellistock_token");
-          setToken(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+    if (!stored) {
+      Promise.resolve().then(() => setLoading(false));
+      return;
     }
+    // Restore the session only after the server confirms the token, so a stale token never renders the app.
+    getMe(stored)
+      .then((me) => { setToken(stored); setUser(me); })
+      .catch(() => window.localStorage.removeItem("intellistock_token"))
+      .finally(() => setLoading(false));
   }, []);
 
   const signIn = async (email: string, password: string) => {

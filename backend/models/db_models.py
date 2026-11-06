@@ -277,3 +277,46 @@ class Feedback(Base, TimestampMixin):
     category = Column(String(20), nullable=False)  # bug | data | feature | other
     page = Column(String(100), nullable=True)
     message = Column(Text, nullable=False)
+
+
+# ─── Broker ──────────────────────────────────────────────────────────────────────
+
+
+class BrokerConnection(Base, TimestampMixin):
+    """One broker link per user. Secret and token are encrypted (backend/brokers/vault.py)."""
+
+    __tablename__ = "broker_connections"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    broker = Column(String(20), nullable=False, default="kite")
+    api_key = Column(String(64), nullable=False)
+    api_secret_enc = Column(Text, nullable=False)
+    access_token_enc = Column(Text, nullable=True)
+    broker_user_id = Column(String(32), nullable=True)
+    broker_user_name = Column(String(100), nullable=True)
+    token_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class OrderLog(Base, TimestampMixin):
+    """Every order IntelliStock sent to a broker, accepted or not: who, what, when, and the broker's answer."""
+
+    __tablename__ = "order_log"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    broker = Column(String(20), nullable=False)
+    tradingsymbol = Column(String(30), nullable=False)
+    exchange = Column(String(10), nullable=False)
+    side = Column(String(4), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(Float, nullable=False)
+    product = Column(String(10), nullable=False)
+    status = Column(String(20), nullable=False)  # sent | rejected | error
+    broker_order_id = Column(String(64), nullable=True)
+    message = Column(String(300), nullable=True)
+    confirm_sig = Column(String(64), nullable=True, unique=True)  # one confirmation sends at most one order

@@ -8,6 +8,8 @@ import {
   addPortfolioEntry,
   removePortfolioEntry,
   getSignal,
+  getBrokerStatus,
+  getLiveQuotes,
 } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = React.useState(true);
   const [pricesLoading, setPricesLoading] = React.useState(false);
   const [placeholderPrices, setPlaceholderPrices] = React.useState(false);
+  const [liveAt, setLiveAt] = React.useState<string | null>(null);
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState({
     ticker: "",
@@ -56,7 +59,17 @@ export default function PortfolioPage() {
       const API = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1";
       let quotes: Record<string, number> = {};
       let placeholder = false;
+      let live: string | null = null;
+      // Connected to Zerodha: live last traded prices from the user's own account come first.
       try {
+        const bs = await getBrokerStatus(token);
+        if (bs.session_valid && base.length) {
+          const q = await getLiveQuotes(token, Array.from(new Set(base.map((h) => h.ticker))));
+          quotes = q.prices;
+          live = q.as_of;
+        }
+      } catch { /* no live prices: fall back to end-of-day below */ }
+      if (!live) try {
         const names = Array.from(new Set(base.map((h) => h.ticker))).join(",");
         const r = await fetch(`${API}/market/quotes?tickers=${encodeURIComponent(names)}`, { headers: { Authorization: `Bearer ${token}` } });
         if (r.ok) {
@@ -80,6 +93,7 @@ export default function PortfolioPage() {
       );
       setHoldings(withPrices);
       setPlaceholderPrices(placeholder);
+      setLiveAt(live);
       setPricesLoading(false);
     } catch {
       setLoading(false);
@@ -87,7 +101,7 @@ export default function PortfolioPage() {
   }, [token]);
 
   React.useEffect(() => {
-    load();
+    Promise.resolve().then(load);
   }, [load]);
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -135,7 +149,7 @@ export default function PortfolioPage() {
         <div>
           <h1 className="font-display text-2xl font-semibold">Portfolio</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Your tracked positions, marked to the latest available price.
+            {liveAt ? `Live prices from your Zerodha account, as of ${new Date(liveAt).toLocaleTimeString("en-IN", { timeStyle: "short" })}.` : "Your tracked positions, marked to the latest available price."}
           </p>
         </div>
         <Button onClick={() => setShowForm((v) => !v)}>

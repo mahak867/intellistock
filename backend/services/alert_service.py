@@ -6,12 +6,15 @@ Prices here are END-OF-DAY closes, never live. Three rule types are supported:
                               stock's normal range (average of the 60 days before it)
 When prices are placeholders or unlicensed, rules are still checked so you can see them work, but the result is labelled
 and nothing is sent outside the app.
+
+Users who have connected Zerodha (and whose Kite plan includes market data) get price alerts checked against the LIVE
+last traded price from their own account instead of the end-of-day close.
 """
 from __future__ import annotations
 
 import asyncio
 import math
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable
 
 from loguru import logger
@@ -20,7 +23,7 @@ from sqlalchemy import select
 from backend.core.config import settings
 from backend.core.database import get_session
 from backend.data import providers
-from backend.models.db_models import AlertRule, User
+from backend.models.db_models import AlertRule, BrokerConnection, User
 from backend.tools import alerts as A
 
 SUPPORTED = ("price_above", "price_below", "vol_spike")
@@ -69,6 +72,8 @@ async def check_alerts(user_id: str | None = None, make_sender: Callable[[str, s
                 logger.warning(f"alert check: {t}: {e}")
                 snaps[t] = (None, None, "could not read prices")
 
+        live = await _live_prices(session, rows)
+
         token = settings.TELEGRAM_BOT_TOKEN
         fired, skipped = [], []
         source, real = "synthetic", False
@@ -79,14 +84,21 @@ async def check_alerts(user_id: str | None = None, make_sender: Callable[[str, s
                 continue
             bar_day: date = pr.df.index[-1].date()
             source, real = pr.source, not pr.synthetic
+            lp = live.get(rule.user_id, {}).get(rule.ticker) if rule.alert_type in ("price_above", "price_below") else None
+            if lp is not None:
+                snap = {**snap, "price": lp}
             if rule.last_triggered is not None and rule.last_triggered.date() >= bar_day and rule.alert_type == "vol_spike":
                 continue  # already fired for this day's bar
             hit = A.evaluate([_rule(rule)], {rule.ticker: snap}, bar_day)
             if not hit:
                 continue
-            note = "" if real else "[placeholder prices, not real] "
-            text = f"{note}{hit[0].message} (close of {bar_day:%d %b %Y})"[:300]
-            can_send = real and providers.licensed() and bool(token) and bool(user.telegram_chat_id)
+            if lp is not None:
+                text = f"{hit[0].message} (live price from your Zerodha account, {datetime.now(IST):%d %b %H:%M} IST)"[:300]
+                can_send = bool(token) and bool(user.telegram_chat_id)  # the user's own licensed feed
+            else:
+                note = "" if real else "[placeholder prices, not real] "
+                text = f"{note}{hit[0].message} (close of {bar_day:%d %b %Y})"[:300]
+                can_send = real and providers.licensed() and bool(token) and bool(user.telegram_chat_id)
             delivered: bool | None = None
             if can_send:
                 try:
@@ -99,8 +111,31 @@ async def check_alerts(user_id: str | None = None, make_sender: Callable[[str, s
             rule.trigger_count = (rule.trigger_count or 0) + 1
             if rule.alert_type != "vol_spike":
                 rule.is_active = False  # one-shot: re-arm it from the Alerts page
-            fired.append({"id": str(rule.id), "ticker": rule.ticker, "message": text, "delivered": delivered})
+            fired.append({"id": str(rule.id), "ticker": rule.ticker, "message": text, "delivered": delivered, "live": lp is not None})
         return {"checked": len(rows), "fired": fired, "skipped": skipped, "data_source": source, "real_data": real}
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+async def _live_prices(session, rows) -> dict[str, dict[str, float]]:
+    """{user_id: {ticker: last price}} for users with a working Zerodha session. Any failure means end-of-day instead."""
+    from backend.services import broker_service as B
+
+    users = {r.user_id for r, _ in rows if r.alert_type in ("price_above", "price_below")}
+    if not users:
+        return {}
+    conns = (await session.execute(select(BrokerConnection).where(BrokerConnection.user_id.in_(users)))).scalars().all()
+    out: dict[str, dict[str, float]] = {}
+    for c in conns:
+        if not B.session_valid(c):
+            continue
+        tickers = sorted({r.ticker for r, _ in rows if r.user_id == c.user_id})
+        try:
+            out[c.user_id] = await B.run(B.client(c).ltp, tickers)
+        except Exception as e:  # no market-data add-on, expired token, network: fall back quietly
+            logger.info(f"live prices unavailable for one user: {type(e).__name__}")
+    return out
 
 
 def check_alerts_sync() -> dict:

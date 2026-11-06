@@ -1,35 +1,35 @@
-# ─── Stage 1: Build dependencies ────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+# API, Celery worker and Celery beat all run from this image (see docker-compose.yml).
 
+# ─── Stage 1: dependencies in a virtualenv ───────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
 WORKDIR /build
 COPY requirements.txt .
-
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 
-# ─── Stage 2: Production image ───────────────────────────────────────────────────
-FROM python:3.11-slim AS production
+# ─── Stage 2: runtime ────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS production
 
-# Security: run as non-root user
+ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 TF_CPP_MIN_LOG_LEVEL=3
+
+# Run as a non-root user.
 RUN groupadd -r intellistock && useradd -r -g intellistock -d /app -s /sbin/nologin intellistock
 
+COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
-
-# Copy installed packages from builder
-COPY --from=builder /root/.local /home/intellistock/.local
-ENV PATH=/home/intellistock/.local/bin:$PATH
-
-# Copy application code
 COPY --chown=intellistock:intellistock . .
+RUN mkdir -p /app/data /app/models /app/logs && chown -R intellistock:intellistock /app/data /app/models /app/logs
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+# The slim image has no curl, so the health check uses Python.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5).status == 200 else 1)"
 
 USER intellistock
-
 EXPOSE 8000
 
 # Outside development nothing else creates the tables, so apply migrations first (idempotent).
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --workers 4 --loop uvloop --access-log"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --workers ${API_WORKERS:-2} --loop uvloop --access-log"]

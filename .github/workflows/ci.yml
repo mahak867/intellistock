@@ -38,7 +38,51 @@ jobs:
       - run: npm ci
       - name: Type-check
         run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint app components lib
       - name: Build
         run: npx next build
         env:
           NEXT_PUBLIC_API_BASE: http://localhost:8000/api/v1
+
+  docker:
+    # Builds the API image and starts it against real Postgres and Redis: migrations run, then the health check must answer.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f infra/docker/Dockerfile.api -t intellistock-api .
+      - name: Image contains no secrets or local data
+        run: |
+          docker run --rm --entrypoint sh intellistock-api -c 'test ! -e /app/.env && test ! -d /app/frontend-react && test ! -d /app/.git'
+      - name: Start API (migrations + uvicorn) and wait for health
+        run: |
+          docker run -d --name api --network host \
+            -e ENVIRONMENT=staging -e SECRET_KEY=ci-only-secret-key-0123456789abcdef0123 \
+            -e DATABASE_URL=postgresql+asyncpg://ci:ci@localhost:5432/ci -e REDIS_URL=redis://localhost:6379/0 \
+            intellistock-api
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/api/v1/health; then echo; echo "healthy after ${i}x3s"; break; fi
+            sleep 3
+          done
+          curl -sf http://localhost:8000/api/v1/health
+      - name: Migrations reached head
+        run: docker exec api alembic current | grep -q "(head)"
+      - name: Worker and scheduler import
+        run: docker run --rm --network host -e SECRET_KEY=ci-only-secret-key-0123456789abcdef0123 -e DATABASE_URL=postgresql+asyncpg://ci:ci@localhost:5432/ci -e REDIS_URL=redis://localhost:6379/0 intellistock-api celery -A backend.core.celery_app report
+      - name: Logs
+        if: always()
+        run: docker logs api || true

@@ -319,3 +319,40 @@ export async function sendFeedback(token: string, f: { category: "bug" | "data" 
 export async function getMarketStatus(token: string | null) {
   return request<{ provider: string; real_data: boolean; licensed_to_serve: boolean; note: string; last?: string; symbols?: number }>("/market/status", token);
 }
+
+// ── Broker (Zerodha Kite Connect) ────────────────────────────────────────
+export interface BrokerStatus {
+  connected: boolean;
+  broker: string | null;
+  session_valid: boolean;
+  orders_enabled: boolean;
+  api_key?: string;
+  broker_user_id?: string | null;
+  broker_user_name?: string | null;
+  session_expires_at?: string | null;
+  login_url?: string;
+}
+export interface BrokerHolding { ticker: string; exchange: string; quantity: number; avg_buy_price: number; last_price: number | null; pnl: number | null }
+export interface OrderTicket { tradingsymbol: string; exchange: "NSE" | "BSE"; side: "BUY" | "SELL"; quantity: number; price: number; product: "CNC" | "MIS" }
+export interface OrderPreview {
+  order: OrderTicket; order_type: string; validity: string; value: number; last_price: number | null; gap_from_last_pct: number | null;
+  charges_estimate: number; warnings: string[]; confirm_token: string; expires_in_seconds: number;
+}
+export interface OrderLogRow { id: string; time: string | null; symbol: string; exchange: string; side: string; quantity: number; price: number; product: string; status: string; broker_order_id: string | null; message: string | null }
+
+export const getBrokerStatus = (token: string) => request<BrokerStatus>("/broker/status", token);
+export const saveBrokerKeys = (token: string, api_key: string, api_secret: string) =>
+  request<BrokerStatus & { message: string }>("/broker/kite/keys", token, { method: "PUT", body: JSON.stringify({ api_key, api_secret }) });
+export const finishBrokerLogin = (token: string, request_token: string) =>
+  request<BrokerStatus & { message: string }>("/broker/kite/session", token, { method: "POST", body: JSON.stringify({ request_token }) });
+export const disconnectBroker = (token: string) => request("/broker", token, { method: "DELETE" });
+export const getBrokerHoldings = (token: string) => request<{ holdings: BrokerHolding[]; as_of: string }>("/broker/holdings", token);
+export const importBrokerHoldings = (token: string, mode: "merge" | "replace") =>
+  request<{ added: number; updated: number; removed: number; note: string | null }>("/broker/holdings/import", token, { method: "POST", body: JSON.stringify({ mode }) });
+export const getLiveQuotes = (token: string, tickers: string[]) =>
+  request<{ prices: Record<string, number>; missing: string[]; as_of: string }>(`/broker/quotes?tickers=${encodeURIComponent(tickers.join(","))}`, token);
+export const previewOrder = (token: string, o: OrderTicket) =>
+  request<OrderPreview>("/broker/orders/preview", token, { method: "POST", body: JSON.stringify(o) });
+export const placeOrder = (token: string, o: OrderTicket, confirm_token: string) =>
+  request<{ message: string; broker_order_id: string; status: string }>("/broker/orders", token, { method: "POST", body: JSON.stringify({ ...o, confirm_token }) });
+export const getOrderLog = (token: string) => request<{ orders: OrderLogRow[] }>("/broker/orders", token);

@@ -64,7 +64,7 @@ export function Generic({ data, depth = 0, parent }: { data: unknown; depth?: nu
     const e = Object.entries(data as Record<string, unknown>);
     const scalars = e.filter(([, v]) => v === null || typeof v !== "object");
     const rest = e.filter(([, v]) => v !== null && typeof v === "object" && !(Array.isArray(v) && v.length === 0));
-    const notes = scalars.filter(([k, v]) => typeof v === "string" && (v as string).length > 40);
+    const notes = scalars.filter(([, v]) => typeof v === "string" && (v as string).length > 40);
     const tiles = scalars.filter((x) => !notes.includes(x));
     return (
       <div className="space-y-4">

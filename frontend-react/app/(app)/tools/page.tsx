@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any -- each tool's API returns a different shape; every view reads only the fields its endpoint documents. */
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
@@ -186,7 +187,7 @@ function ToolsInner() {
     } finally { setBusy(false); }
   }, [token]);
 
-  React.useEffect(() => { if (tool.method === "GET" && tool.fields.length === 0) run(tool, vals); }, [tool, run]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (tool.method === "GET" && tool.fields.length === 0) Promise.resolve().then(() => run(tool, vals)); }, [tool, run]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-w-0 space-y-6">

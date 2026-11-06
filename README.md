@@ -14,7 +14,7 @@
 
 IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to show likely price ranges, risk and costs for Indian stocks.
 
-**Status, honestly:** a working full-stack app with a real API, authentication, 212 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
+**Status, honestly:** a working full-stack app with a real API, authentication, 234 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
 
 ---
 
@@ -26,6 +26,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Signals** | Legacy BUY/SELL/HOLD endpoints from the old LSTM. The new screens show price ranges instead, because the direction forecast showed no edge in testing (see Measured accuracy) |
 | **Alerts** | Price-above, price-below and unusually-wide-day alerts, checked on the latest end-of-day close every 30 minutes (Celery beat). Telegram delivery uses your own bot token and has only been tested against a mock, not a live bot. Nothing is sent off-app while prices are placeholders or unlicensed |
 | **Fundamentals screener** | Filter and rank stocks on a CSV you export (for example from Screener.in): P/E, ROE, ROCE, debt/equity, promoter holding, growth. IntelliStock ships no fundamentals data |
+| **Broker (Zerodha)** | Connect your own Kite Connect app: live holdings, import into your portfolio, live prices (needs Kite's market-data add-on), and limit orders. Each order is previewed and confirmed within 2 minutes, a confirmation sends at most one order, prices more than 20% from the last price or orders over ₹10 lakh are refused as likely typos, and every order is logged. Keys and tokens are encrypted at rest. Tested against a simulated Kite API built from Zerodha's documented formats, not a live account |
 | **Mobile** | Phone layout with a bottom bar, installable from the browser (Add to Home Screen). No offline mode on purpose. Checked in an emulated 390px browser, not on a real phone |
 | **API** | FastAPI, JWT auth, refresh tokens, rate limiting, Redis caching |
 | **Security** | BCrypt passwords, token revocation, HTTPS-only headers, CORS, rate limits |
@@ -33,7 +34,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
 | **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 212 automated tests (pytest) — tools, data layer, API, backtest, security |
+| **Testing** | 234 automated tests (pytest) — tools, data layer, API, backtest, security |
 
 ---
 
@@ -223,6 +224,14 @@ The 80% price range held 84.6% of the time on newer data at 10 days (72% to 92% 
 
 Create alerts on the **Alerts** page. A Celery beat task checks them every `ALERT_CHECK_MINUTES` (default 30) against the latest end-of-day close; prices are never live. To send them to Telegram, create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN`, and each user saves their own chat id on the Alerts page. Delivery code is tested against a mock only. While prices are placeholders or unlicensed, alerts are labelled and shown in the app only.
 
+## Broker (Zerodha Kite Connect)
+
+1. Create an app at developers.kite.trade with your own Zerodha account. Set its Redirect URL to `https://<your IntelliStock site>/broker/callback`.
+2. To place orders, add the server's static IP to your Kite developer profile (SEBI's retail-API rules from April 2026; Zerodha rejects orders from other IPs).
+3. In IntelliStock open **Broker**, paste the API key and secret, and log in with Zerodha. Sessions end at 6 AM IST each day, so you log in once per trading day.
+
+Once connected: holdings and live prices come from your account, the portfolio shows live P&L, and price alerts use the live price and can be sent to Telegram (it is your own data feed). Orders are LIMIT, DAY, delivery (CNC) or intraday (MIS), one per confirmation. Set `BROKER_ORDERS_ENABLED=false` to allow holdings and prices only. IntelliStock is not a broker or a SEBI-registered adviser.
+
 ## 🗄️ Database migrations
 
 Development creates tables automatically. Anywhere else, create them with Alembic before the API starts (the API Docker image does this on boot):
@@ -331,7 +340,8 @@ Two independent dashboards ship in this repo, both talking to the same backend A
 
 - Model performance numbers in this README are from a synthetic-data development run used to validate the pipeline (see [Results](#-results)) — not yet run against live NSE data.
 - CI (`.github/workflows/ci.yml`) installs `requirements.txt` and runs `pytest backend/tests/`. It was added after an earlier broken workflow was removed; check the Actions tab for its current status. There is no automated deploy (Cloud Run or otherwise) yet.
-- Celery: `backend/core/celery_app.py` provides the worker and a daily retrain beat task (`RETRAIN_TICKERS`, default `RELIANCE`). It calls `train.train()` without cloud upload; wiring it to the model registry is not done.
+- Celery: `backend/core/celery_app.py` runs alert checks every `ALERT_CHECK_MINUTES` and a daily retrain (`RETRAIN_TICKERS`, default `RELIANCE`). Both tasks were run end to end through a real worker, Redis and Postgres on real NSE prices. Training reads the local NSE store when `DATA_PROVIDER` is `nse`/`local` (or `python train.py --data-source store`), otherwise Yahoo Finance. Retrained models are saved locally; wiring them to the model registry is not done.
+- Docker: CI builds the API image and starts it against Postgres and Redis (migrations run, health check must pass). Docker Compose as a whole has not been run.
 - The backtesting engine (`ml/backtest/engine.py`) simulates a single ticker's history; it hasn't been run across the full NIFTY-50 universe.
 
 ---

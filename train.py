@@ -63,10 +63,33 @@ def parse_args() -> argparse.Namespace:
         "--output-dir", default="models", help="Local model output directory"
     )
     parser.add_argument("--lookback-years", default=5, type=int)
+    parser.add_argument("--data-source", default="auto", choices=["auto", "store", "yahoo"],
+                        help="auto: local NSE store when DATA_PROVIDER is nse/local, else Yahoo Finance")
     return parser.parse_args()
 
 
 # ─── Main training pipeline ──────────────────────────────────────────────────────
+
+
+def load_training_data(args: argparse.Namespace):
+    """Prices and the NIFTY 50 daily return. Source: the local NSE store when DATA_PROVIDER is nse/local (or
+    --data-source store), otherwise Yahoo Finance. The store is preferred: it is the same data the app serves."""
+    from backend.data import providers
+
+    source = getattr(args, "data_source", "auto")
+    if source == "store" or (source == "auto" and providers.provider_name() in providers.STORE_PROVIDERS):
+        p = providers.get_prices(args.ticker, days=252 * args.lookback_years)
+        df = p.df.rename(columns=str.title)[["Open", "High", "Low", "Close", "Volume"]].copy()
+        df["IsHoliday"] = 0.0
+        idx = providers.index_series("NIFTY 50")
+        nifty = idx.pct_change().rename("Nifty50_Return") if idx is not None else None
+        logger.info(f"Step 1-2/8: {len(df)} rows from the local {p.source} store; NIFTY 50 {'found' if nifty is not None else 'not in store, skipped'}")
+        return df, nifty
+    logger.info(f"Step 1/8: Fetching {args.ticker} data from Yahoo Finance ({args.lookback_years}y)")
+    df = fetch_ohlcv(args.ticker, exchange=args.exchange, lookback_years=args.lookback_years)
+    logger.info("Step 2/8: Fetching NIFTY50 macro feature")
+    nifty = fetch_nifty50(start=df.index[0].strftime("%Y-%m-%d"), end=df.index[-1].strftime("%Y-%m-%d"))
+    return df, nifty
 
 
 def train(args: argparse.Namespace) -> dict:
@@ -79,18 +102,8 @@ def train(args: argparse.Namespace) -> dict:
 
     # ── Step 1: Fetch data ───────────────────────────────────────────────────
     logger.info(f"Step 1/8: Fetching {args.ticker} data ({args.lookback_years}y)")
-    df = fetch_ohlcv(
-        args.ticker,
-        exchange=args.exchange,
-        lookback_years=args.lookback_years,
-    )
+    df, nifty = load_training_data(args)
     logger.info(f"Fetched {len(df)} rows: {df.index[0].date()} → {df.index[-1].date()}")
-
-    # ── Step 2: Fetch NIFTY50 macro feature ─────────────────────────────────
-    logger.info("Step 2/8: Fetching NIFTY50 macro feature")
-    start_str = df.index[0].strftime("%Y-%m-%d")
-    end_str = df.index[-1].strftime("%Y-%m-%d")
-    nifty = fetch_nifty50(start=start_str, end=end_str)
 
     # ── Step 3: Train/val/test split (chronological, no shuffle) ────────────
     logger.info("Step 3/8: Splitting data (75/10/15 chronological)")

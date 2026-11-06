@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Dialog } from "radix-ui";
-import { LayoutDashboard, LineChart, History, Settings, LogOut, Briefcase, Calculator, BellRing, LifeBuoy, Ellipsis } from "lucide-react";
+import { LayoutDashboard, LineChart, History, Settings, LogOut, Briefcase, Calculator, BellRing, LifeBuoy, Ellipsis, Landmark } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/tools", label: "Tools", icon: Calculator },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/alerts", label: "Alerts", icon: BellRing },
+  { href: "/broker", label: "Broker", icon: Landmark },
   { href: "/backtesting", label: "Backtesting", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/help", label: "Help", icon: LifeBuoy },

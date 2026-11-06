@@ -1,0 +1,18 @@
+# Never bake secrets, local data or build output into the image.
+.env
+.env.*
+!.env.example
+.git
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.cache
+.venv
+data/
+models/
+logs/
+frontend/
+frontend-react/
+docs/
+*.zip
+*.bundle
