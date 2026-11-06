@@ -1,0 +1,50 @@
+name: Demo on Windows, macOS and Linux
+
+# Runs the one-command local demo (scripts/demo.py) the way a user would, on each OS, then checks it with
+# scripts/demo_smoke.py. On macOS it also drives the pages in Safari's engine (WebKit) as an iPhone.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["scripts/demo.py", "scripts/demo_smoke.py", "requirements.txt", "frontend-react/package*.json", "backend/core/**"]
+
+jobs:
+  demo:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+      - name: Install (as the README says)
+        run: |
+          pip install -r requirements.txt
+          cp .env.example .env
+          cd frontend-react && npm ci --no-audit --no-fund
+      - name: Browser for the phone check
+        if: runner.os == 'macOS'
+        run: pip install playwright==1.48.0 && python -m playwright install webkit
+      - name: Start the demo
+        run: |
+          nohup python scripts/demo.py > demo.log 2>&1 &
+          echo "started"
+      - name: Smoke test
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then python scripts/demo_smoke.py --browser webkit; else python scripts/demo_smoke.py; fi
+      - name: Demo log
+        if: always()
+        run: tail -n 80 demo.log || true
