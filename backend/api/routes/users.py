@@ -95,31 +95,12 @@ async def update_profile(
 
 @router.get("/portfolio", summary="Get user's portfolio")
 async def get_portfolio(current_user: dict = Depends(get_current_user)) -> dict:
-    async with get_session() as session:
-        from sqlalchemy import select
+    """Quantities and average prices include the splits and bonuses you recorded (raw_* are as entered)."""
+    from backend.services.holdings_service import adjusted
 
-        result = await session.execute(
-            select(PortfolioEntry).where(
-                PortfolioEntry.user_id == current_user["sub"]
-            )
-        )
-        entries = result.scalars().all()
-        return {
-            "portfolio": [
-                {
-                    "id": str(e.id),
-                    "ticker": e.ticker,
-                    "exchange": e.exchange,
-                    "quantity": e.quantity,
-                    "avg_buy_price": e.avg_buy_price,
-                    "invested_value": e.invested_value,
-                    "buy_date": e.buy_date.isoformat(),
-                    "notes": e.notes,
-                }
-                for e in entries
-            ],
-            "count": len(entries),
-        }
+    async with get_session() as session:
+        rows = await adjusted(session, current_user["sub"])
+        return {"portfolio": rows, "count": len(rows)}
 
 
 @router.post(

@@ -77,6 +77,13 @@ def browser(kind: str) -> None:
         pg.click("text=Calculate")
         pg.wait_for_selector("text=stocks match", timeout=60000)
         check(f"{kind}: a tool runs", True)
+        pg.goto(WEB + "/funds")
+        pg.wait_for_selector("text=Import a CAS statement", timeout=60000)
+        w = pg.evaluate("[document.documentElement.scrollWidth, innerWidth]")
+        check(f"{kind}: /funds renders without sideways scroll", w[0] <= w[1], w)
+        pg.goto(WEB + "/portfolio")
+        pg.wait_for_selector("text=Dividends, bonuses and splits", timeout=60000)
+        check(f"{kind}: portfolio shows corporate actions", True)
         pg.goto(WEB + "/tools?tool=taxlots")
         pg.click("text=Calculate")
         pg.wait_for_selector("text=long-term gain you can still book", timeout=60000)
@@ -114,6 +121,26 @@ def main() -> int:
     book = "trade_date,symbol,trade_type,quantity,price\n2024-01-10,TCS,buy,10,3000\n2025-09-15,TCS,sell,4,3800\n"
     s, tl = call("POST", "/tools/tax/lots", {"csv": book, "prices": {"TCS": 4000}, "as_of": "2026-01-15"})
     check("tax lots: FIFO gain and harvesting headroom", s == 200 and tl["realised"][0]["gain"] == 3200 and tl["harvest"]["headroom_left"] == 121800, (s, tl if s != 200 else tl["harvest"]))
+    s, ca = call("POST", "/users/corporate-actions", {"ticker": "TCS", "kind": "bonus", "ex_date": "2025-06-02", "ratio_new": 1, "ratio_old": 1}, token=t)
+    s2, pf2 = call("GET", "/users/portfolio", token=t)
+    tcs = next((x for x in (pf2 or {}).get("portfolio", []) if x["ticker"] == "TCS"), {})
+    check("corporate action doubles shares on a 1:1 bonus", s == 201 and tcs.get("quantity") == 2 * tcs.get("raw_quantity", -1), (s, tcs))
+    if s == 201:
+        call("DELETE", f"/users/corporate-actions/{ca['id']}", token=t)
+    s, perf = call("GET", "/users/portfolio/performance", token=t)
+    check("portfolio performance answers", s == 200 and len(perf["holdings"]) == 3, s)
+    s, sch = call("GET", "/funds/schemes?q=nifty%2050%20index", token=t)
+    if s == 502:
+        print("SKIP mutual fund search: AMFI not reachable from this machine")
+    else:
+        check("AMFI scheme search", s == 200 and len(sch["schemes"]) > 0, s)
+        if s == 200:
+            code = sch["schemes"][0]["scheme_code"]
+            s, add = call("POST", "/funds", {"scheme_code": code, "units": 10, "invested": 1000, "date": "2024-01-02"}, token=t)
+            s2, fv = call("GET", "/funds", token=t)
+            check("mutual fund added and valued at AMFI NAV", s == 201 and fv["funds"][0]["nav_source"] == "amfi" and fv["funds"][0]["value"] > 0, (s, s2))
+            if s == 201:
+                call("DELETE", f"/funds/{add['id']}", token=t)
     s, bs = call("GET", "/broker/status", token=t)
     check("broker status answers (not connected)", s == 200 and bs["connected"] is False, (s, bs))
     if a.browser:

@@ -17,6 +17,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -320,3 +321,59 @@ class OrderLog(Base, TimestampMixin):
     broker_order_id = Column(String(64), nullable=True)
     message = Column(String(300), nullable=True)
     confirm_sig = Column(String(64), nullable=True, unique=True)  # one confirmation sends at most one order
+
+
+# ─── Corporate actions you confirmed for your holdings ────────────────────────────
+
+
+class CorporateAction(Base, TimestampMixin):
+    __tablename__ = "corporate_actions"
+    __table_args__ = (UniqueConstraint("user_id", "ticker", "kind", "ex_date", name="uq_corp_action"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ticker = Column(String(20), nullable=False)
+    kind = Column(String(10), nullable=False)  # dividend | split | bonus
+    ex_date = Column(Date, nullable=False)
+    amount = Column(Float, nullable=True)      # dividend per share
+    ratio_new = Column(Float, nullable=True)   # split: old face value; bonus: a in a:b
+    ratio_old = Column(Float, nullable=True)   # split: new face value; bonus: b in a:b
+    source = Column(String(10), nullable=False, default="manual")  # manual | nse
+
+
+# ─── Mutual funds ─────────────────────────────────────────────────────────────────
+
+
+class FundHolding(Base, TimestampMixin):
+    __tablename__ = "fund_holdings"
+    __table_args__ = (UniqueConstraint("user_id", "folio", "scheme_key", name="uq_fund_holding"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    folio = Column(String(40), nullable=False, default="")
+    scheme_key = Column(String(20), nullable=False)        # AMFI code, else ISIN
+    scheme_code = Column(String(10), nullable=True)        # AMFI scheme code
+    isin = Column(String(12), nullable=True)
+    scheme_name = Column(String(200), nullable=False)
+    units = Column(Float, nullable=False)
+    invested = Column(Float, nullable=True)
+    last_nav = Column(Float, nullable=True)
+    last_nav_date = Column(Date, nullable=True)
+    source = Column(String(10), nullable=False, default="manual")  # cas | manual
+
+
+class FundTransaction(Base, TimestampMixin):
+    __tablename__ = "fund_transactions"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    holding_id = Column(
+        UUID(as_uuid=False), ForeignKey("fund_holdings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    date = Column(Date, nullable=False)
+    kind = Column(String(20), nullable=False)
+    amount = Column(Float, nullable=False)   # negative = money in, positive = money out
+    units = Column(Float, nullable=False)

@@ -356,3 +356,33 @@ export const previewOrder = (token: string, o: OrderTicket) =>
 export const placeOrder = (token: string, o: OrderTicket, confirm_token: string) =>
   request<{ message: string; broker_order_id: string; status: string }>("/broker/orders", token, { method: "POST", body: JSON.stringify({ ...o, confirm_token }) });
 export const getOrderLog = (token: string) => request<{ orders: OrderLogRow[] }>("/broker/orders", token);
+
+// ── Holdings extras: performance and corporate actions ───────────────────
+export interface PerfRow { ticker: string; buy_date: string; invested: number; dividends: number; price: number | null; value: number | null; gain: number | null; return_pct: number | null; xirr: number | null; nifty_xirr: number | null; note: string | null }
+export interface Performance { as_of: string; holdings: PerfRow[]; total: { invested: number; value: number; dividends: number; gain: number; xirr: number | null; nifty_xirr: number | null; benchmark_note: string | null }; price_source: string; real_prices: boolean; warning?: string }
+export interface CorpAction { id?: string; ticker: string; kind: "dividend" | "split" | "bonus"; ex_date: string; amount?: number | null; ratio_new?: number | null; ratio_old?: number | null; source?: string; source_text?: string }
+
+export const getPerformance = (token: string) => request<Performance>("/users/portfolio/performance", token);
+export const getCorpActions = (token: string) => request<{ actions: CorpAction[] }>("/users/corporate-actions", token);
+export const addCorpAction = (token: string, a: CorpAction) => request<CorpAction>("/users/corporate-actions", token, { method: "POST", body: JSON.stringify(a) });
+export const deleteCorpAction = (token: string, id: string) => request(`/users/corporate-actions/${id}`, token, { method: "DELETE" });
+export const lookupCorpActions = (token: string, ticker: string) =>
+  request<{ actions: CorpAction[]; note: string }>(`/users/corporate-actions/lookup/${encodeURIComponent(ticker)}`, token);
+
+// ── Mutual funds ─────────────────────────────────────────────────────────
+export interface FundRow { id: string; scheme_name: string; scheme_code: string | null; folio: string; units: number; nav: number | null; nav_date: string | null; nav_source: string; invested: number | null; value: number | null; gain: number | null; xirr: number | null; source: string }
+export interface FundsView { funds: FundRow[]; total: { invested: number; value: number; gain: number; xirr_of_funds_with_history: number | null }; nav_note: string | null; as_of: string }
+export const getFunds = (token: string) => request<FundsView>("/funds", token);
+export const searchSchemes = (token: string, q: string) => request<{ schemes: { scheme_code: string; name: string; nav: number; nav_date: string }[] }>(`/funds/schemes?q=${encodeURIComponent(q)}`, token);
+export const addFund = (token: string, f: { scheme_code: string; units: number; invested: number; date: string }) =>
+  request<{ id: string; scheme_name: string }>("/funds", token, { method: "POST", body: JSON.stringify(f) });
+export const deleteFund = (token: string, id: string) => request(`/funds/${id}`, token, { method: "DELETE" });
+export async function importCas(token: string, file: File, password: string) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("password", password);
+  const res = await fetch(`${API_BASE}/funds/import-cas`, { method: "POST", body: fd, headers: { Authorization: `Bearer ${token}` } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, formatDetail(body?.detail, `Import failed (${res.status})`));
+  return body as { imported: number; notes: string[]; message: string };
+}

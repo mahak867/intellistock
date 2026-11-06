@@ -36,3 +36,23 @@ jobs:
           print(len(df), "rows", df.index[0].date(), "to", df.index[-1].date())
           assert len(df) > 200, "too few rows from Yahoo"
           PY
+      - name: AMFI mutual fund NAVs parse
+        run: |
+          python - <<'PY'
+          from backend.data import amfi
+          d = amfi.navs()
+          dates = sorted({n.date for n in d.values()})
+          print(len(d), "schemes; latest NAV date", dates[-1])
+          print([(n.code, n.name[:50], n.nav) for n in amfi.search(d, "nifty 50 index direct growth")[:3]])
+          assert len(d) > 5000, "too few schemes parsed"
+          PY
+      - name: NSE corporate actions (unofficial website API; NSE sometimes blocks cloud runners)
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          from backend.tools import corpactions as CA
+          rows = CA.fetch_nse("TCS")
+          print(len(rows), "actions parsed for TCS")
+          for r in rows[:8]: print(r)
+          assert any(r["kind"] == "dividend" for r in rows), "no dividends parsed"
+          PY

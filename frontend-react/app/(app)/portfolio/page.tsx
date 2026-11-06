@@ -12,6 +12,7 @@ import {
   getLiveQuotes,
 } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CorporateActions, PerformanceCard } from "@/components/portfolio/extras";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export default function PortfolioPage() {
   const [pricesLoading, setPricesLoading] = React.useState(false);
   const [placeholderPrices, setPlaceholderPrices] = React.useState(false);
   const [liveAt, setLiveAt] = React.useState<string | null>(null);
+  const [extrasTick, setExtrasTick] = React.useState(0);
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState({
     ticker: "",
@@ -335,8 +337,14 @@ export default function PortfolioPage() {
               </table>
             </CardContent>
           </Card>
+          {token && (
+            <div className="mt-6 space-y-6">
+              <PerformanceCard token={token} tick={extrasTick} />
+            </div>
+          )}
         </>
       )}
+      {token && <div className="mt-6"><CorporateActions token={token} onChange={() => { setExtrasTick((x) => x + 1); load(); }} /></div>}
     </div>
   );
 }
