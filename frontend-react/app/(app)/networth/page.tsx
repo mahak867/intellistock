@@ -7,6 +7,7 @@ import { addAsset, deleteAsset, getAssets, uploadAssetFile, type NetWorth, type 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AccountAggregator } from "@/components/portfolio/aa-link";
 
 const inputCls = "h-10 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30";
 const inr = (n: number | null | undefined) => (n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`);
@@ -55,6 +56,8 @@ export default function NetWorthPage() {
           </CardContent>
         </Card>
       )}
+
+      {token && <AccountAggregator token={token} onDone={refresh} />}
 
       {token && (
         <div className="grid min-w-0 gap-6 lg:grid-cols-3">

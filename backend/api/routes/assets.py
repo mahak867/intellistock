@@ -244,3 +244,117 @@ async def import_depository(file: UploadFile = File(...), password: str = Form(.
     return {"stocks_added": res["added"], "stocks_updated": res["updated"], "funds": nf, "other_assets": no, "skipped_stocks": skipped,
             "message": f"Imported {res['added'] + res['updated']} stocks, {nf} funds and {no} other holdings for {acct}. The password was not stored.",
             "note": "Stock cost is set to the statement price because depository statements do not include purchase cost; edit each holding for correct returns."}
+
+
+# ── Account Aggregator: link bank accounts, deposits, funds and stocks by consent ─────────────
+class ConsentIn(BaseModel):
+    mobile: str = Field(pattern=r"^[6-9]\d{9}$")
+    account: str = Field(default="Me", pattern=NAME)
+    redirect_url: str = Field(max_length=300, pattern=r"^https?://[^\s<>\"]+$")
+
+
+def _isin_symbols(isins: list[str]) -> dict[str, str]:
+    try:
+        from casparser.parsers._isin import batch_equity_symbols
+
+        return {i: s for i, (s, ex) in batch_equity_symbols(isins).items() if s}
+    except Exception:
+        return {}
+
+
+@router.get("/aa/status")
+async def aa_status(user: dict = Depends(get_current_user)) -> dict:
+    from backend.brokers import aa as AA
+    from backend.models.db_models import AAConsent
+
+    async with get_session() as s:
+        rows = (await s.execute(select(AAConsent).where(AAConsent.user_id == user["sub"]).order_by(AAConsent.created_at.desc()))).scalars().all()
+        return {"configured": AA.configured(), "consents": [{"consent_id": r.consent_id, "account": r.account, "status": r.status,
+                                                             "last_synced": r.last_synced.isoformat() if r.last_synced else None} for r in rows]}
+
+
+@router.post("/aa/consent")
+async def aa_consent(b: ConsentIn, user: dict = Depends(get_current_user)) -> dict:
+    from backend.brokers import aa as AA
+    from backend.models.db_models import AAConsent
+
+    if not AA.configured():
+        raise HTTPException(status_code=503, detail="Account Aggregator is not set up on this server (SETU_AA_CLIENT_ID, SETU_AA_CLIENT_SECRET, SETU_AA_PRODUCT_INSTANCE_ID).")
+    try:
+        c = await asyncio.to_thread(AA.Setu().create_consent, b.mobile, b.redirect_url)
+    except AA.AAError as e:
+        raise HTTPException(status_code=e.status, detail=str(e)) from None
+    async with get_session() as s:
+        s.add(AAConsent(user_id=user["sub"], account=b.account.strip(), consent_id=c["id"][:64], status=c["status"][:20]))
+    return {"consent_id": c["id"], "url": c["url"], "message": "Approve the request on the next page, then come back to sync."}
+
+
+class SyncIn(BaseModel):
+    consent_id: str = Field(min_length=6, max_length=64, pattern=r"^[A-Za-z0-9-]+$")
+
+
+@router.post("/aa/sync")
+async def aa_sync(b: SyncIn, user: dict = Depends(get_current_user)) -> dict:
+    from backend.brokers import aa as AA
+    from backend.models.db_models import AAConsent
+
+    async with get_session() as s:
+        c = (await s.execute(select(AAConsent).where(AAConsent.consent_id == b.consent_id, AAConsent.user_id == user["sub"]))).scalar_one_or_none()
+        if not c:
+            raise HTTPException(status_code=404, detail="Consent not found.")
+        acct = c.account
+    setu = AA.Setu()
+    try:
+        st = await asyncio.to_thread(setu.consent_status, b.consent_id)
+        if st not in ("ACTIVE", "APPROVED"):
+            async with get_session() as s:
+                (await s.execute(select(AAConsent).where(AAConsent.consent_id == b.consent_id))).scalar_one().status = st[:20]
+            raise HTTPException(status_code=409, detail=f"The consent is {st.lower()}. Approve it on the account aggregator page first." if st == "PENDING" else f"The consent is {st.lower()}; start a new one.")
+        sid = await asyncio.to_thread(setu.create_session, b.consent_id)
+        data = {}
+        for _ in range(15):  # banks answer within seconds to a minute
+            data = await asyncio.to_thread(setu.session, sid)
+            if str(data.get("status", "")).upper() in ("COMPLETED", "PARTIAL", "FAILED", "EXPIRED"):
+                break
+            await asyncio.sleep(2)
+    except AA.AAError as e:
+        raise HTTPException(status_code=e.status, detail=str(e)) from None
+    if str(data.get("status", "")).upper() not in ("COMPLETED", "PARTIAL"):
+        raise HTTPException(status_code=504, detail=f"Your banks have not sent the data yet (status {data.get('status')}). Try syncing again in a minute.")
+    got = AA.parse_session(data)
+    today = _today()
+    syms = _isin_symbols([x["isin"] for x in got["stocks"] if x.get("isin")])
+    stocks = [{"ticker": syms[x["isin"]], "qty": x["qty"], "avg": x["price"]} for x in got["stocks"] if x.get("isin") in syms and x.get("price")]
+    unmatched = [x.get("name") or x.get("isin") for x in got["stocks"] if x.get("isin") not in syms or not x.get("price")]
+    res = await _upsert_stocks(user["sub"], acct, stocks, "merge", "From your demat account via Account Aggregator; purchase cost is not shared, so cost is the last price: edit it for correct returns.")
+    async with get_session() as s:
+        await s.execute(delete(OtherAsset).where(OtherAsset.user_id == user["sub"], OtherAsset.account == acct, OtherAsset.source == "aa"))
+        n_other = 0
+        for x in got["bank"]:
+            s.add(OtherAsset(user_id=user["sub"], account=acct, kind="bank", name=x["name"][:100], amount=max(x["amount"], 0.01), as_of=today, source="aa"))
+            n_other += 1
+        for x in got["deposits"]:
+            amt = x["value"] or x["principal"]
+            if not amt:
+                continue
+            d = lambda v: date.fromisoformat(v) if v else None  # noqa: E731
+            # Banks report the current value, so store it as is (no further compounding on top).
+            s.add(OtherAsset(user_id=user["sub"], account=acct, kind="other" if x["value"] else x["kind"], name=x["name"][:100], amount=amt,
+                             rate=x["rate"], start_date=d(x["start"]), maturity_date=d(x["maturity"]), as_of=today, source="aa"))
+            n_other += 1
+        for x in got["other"]:
+            s.add(OtherAsset(user_id=user["sub"], account=acct, kind=x["kind"], name=x["name"][:100], amount=x["amount"], as_of=today, source="aa"))
+            n_other += 1
+        old = (await s.execute(select(FundHolding.id).where(FundHolding.user_id == user["sub"], FundHolding.account == acct, FundHolding.source == "aa"))).scalars().all()
+        if old:
+            await s.execute(delete(FundTransaction).where(FundTransaction.holding_id.in_(old)))
+            await s.execute(delete(FundHolding).where(FundHolding.id.in_(old)))
+        for f in got["funds"]:
+            key = (f["scheme_code"] or f["isin"] or f["scheme_name"])[:20]
+            s.add(FundHolding(user_id=user["sub"], account=acct, folio=f["folio"], scheme_key=key, scheme_code=(f["scheme_code"] or None) and f["scheme_code"][:10],
+                              isin=(f["isin"] or None) and str(f["isin"])[:12], scheme_name=f["scheme_name"], units=f["units"], last_nav=f["nav"], source="aa"))
+        c = (await s.execute(select(AAConsent).where(AAConsent.consent_id == b.consent_id))).scalar_one()
+        c.status, c.session_id, c.last_synced = st[:20], sid[:64], datetime.now(timezone.utc)
+    return {"bank_accounts": len(got["bank"]), "deposits": len(got["deposits"]), "funds": len(got["funds"]), "stocks_added": res["added"],
+            "stocks_updated": res["updated"], "other": len(got["other"]), "unmatched_stocks": unmatched, "failed_accounts": got["failed"],
+            "message": f"Synced {len(got['bank'])} bank accounts, {len(got['deposits'])} deposits, {len(got['funds'])} funds and {res['added'] + res['updated']} stocks for {acct}."}

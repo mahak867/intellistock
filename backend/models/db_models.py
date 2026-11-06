@@ -401,3 +401,19 @@ class OtherAsset(Base, TimestampMixin):
     maturity_date = Column(Date, nullable=True)
     as_of = Column(Date, nullable=True)            # date of the balance (bank statements)
     source = Column(String(20), nullable=False, default="manual")  # manual | bank_statement | cas
+
+
+class AAConsent(Base, TimestampMixin):
+    """An Account Aggregator consent the user gave, and the last data pull."""
+
+    __tablename__ = "aa_consents"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id = Column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    account = Column(String(40), nullable=False, default="Me", server_default="Me")
+    consent_id = Column(String(64), nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="PENDING")
+    session_id = Column(String(64), nullable=True)
+    last_synced = Column(DateTime(timezone=True), nullable=True)

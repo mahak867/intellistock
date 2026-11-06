@@ -83,7 +83,13 @@ class Settings(BaseSettings):
     # Key that encrypts users' broker secrets and tokens at rest. Defaults to one derived from SECRET_KEY;
     # set it separately so rotating SECRET_KEY does not disconnect every broker.
     BROKER_ENCRYPTION_KEY: str | None = None
-    BROKER_ORDERS_ENABLED: bool = True  # set false to allow holdings and quotes only
+    BROKER_ORDERS_ENABLED: bool = True
+
+    # ── Account Aggregator (Setu FIU product) ──
+    SETU_AA_BASE: str = "https://fiu-sandbox.setu.co"
+    SETU_AA_CLIENT_ID: str | None = None
+    SETU_AA_CLIENT_SECRET: str | None = None
+    SETU_AA_PRODUCT_INSTANCE_ID: str | None = None  # set false to allow holdings and quotes only
 
     # ── Cloud Storage ───────────────────────────────────────────────────────
     AWS_ACCESS_KEY_ID: str | None = None

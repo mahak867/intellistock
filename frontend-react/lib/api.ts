@@ -411,3 +411,8 @@ export async function uploadAssetFile(token: string, path: "import-bank" | "impo
   if (!res.ok) throw new ApiError(res.status, formatDetail(body?.detail, `Import failed (${res.status})`));
   return body as Record<string, unknown> & { message?: string; note?: string };
 }
+export const getAAStatus = (token: string) => request<{ configured: boolean; consents: { consent_id: string; account: string; status: string; last_synced: string | null }[] }>("/assets/aa/status", token);
+export const startAAConsent = (token: string, mobile: string, account: string, redirect_url: string) =>
+  request<{ consent_id: string; url: string; message: string }>("/assets/aa/consent", token, { method: "POST", body: JSON.stringify({ mobile, account, redirect_url }) });
+export const syncAA = (token: string, consent_id: string) =>
+  request<{ message: string; unmatched_stocks: string[]; failed_accounts: string[] }>("/assets/aa/sync", token, { method: "POST", body: JSON.stringify({ consent_id }) });
