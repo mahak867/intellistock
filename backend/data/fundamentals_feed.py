@@ -24,6 +24,13 @@ def _num(v, scale: float = 1.0):
     return round(x, 4) if math.isfinite(x) else None
 
 
+def _shares_x_price(info: dict):
+    try:
+        return float(info["sharesOutstanding"]) * float(info.get("currentPrice") or info["regularMarketPrice"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def from_info(symbol: str, info: dict) -> dict:
     """Map a yfinance `info` dict to IntelliStock's field names (percent fields as plain percents)."""
     de = _num(info.get("debtToEquity"))
@@ -45,7 +52,7 @@ def from_info(symbol: str, info: dict) -> dict:
         "sales_growth": _num(info.get("revenueGrowth"), 100),
         "profit_cagr_3y": None,  # not available from Yahoo
         "earnings_growth": _num(info.get("earningsGrowth"), 100),
-        "market_cap_cr": _num(info.get("marketCap"), 1e-7),
+        "market_cap_cr": _num(info.get("marketCap") or _shares_x_price(info), 1e-7),
         "dividend_yield": dy,
         "insider_holding": _num(info.get("heldPercentInsiders"), 100),
         "beta": _num(info.get("beta")),
@@ -62,7 +69,13 @@ def fetch_one(symbol: str, exchange: str = "NSE") -> dict:
     import yfinance as yf
 
     suffix = ".NS" if exchange == "NSE" else ".BO"
-    info = yf.Ticker(symbol.upper() + suffix).info or {}
+    tk = yf.Ticker(symbol.upper() + suffix)
+    info = dict(tk.info or {})
+    if not info.get("marketCap"):
+        try:  # Yahoo sometimes leaves marketCap out of `info` for NSE listings
+            info["marketCap"] = tk.fast_info["marketCap"]
+        except Exception:
+            pass
     if not info or (info.get("trailingPE") is None and info.get("marketCap") is None):
         raise LookupError(f"Yahoo Finance has no fundamentals for {symbol}.")
     row = from_info(symbol, info)

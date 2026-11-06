@@ -66,3 +66,8 @@ def test_fundamentals_endpoint(monkeypatch):
         raise LookupError("Yahoo Finance has no fundamentals for ZZZ.")
     monkeypatch.setattr(FF, "fetch_one", none)
     assert TestClient(app).get("/api/v1/market/fundamentals/ZZZ").status_code == 404
+
+
+def test_market_cap_falls_back_to_shares_times_price():
+    r = FF.from_info("TCS", {k: v for k, v in INFO.items() if k != "marketCap"} | {"sharesOutstanding": 3_600_000_000})
+    assert r["market_cap_cr"] == 3_600_000_000 * 3480.0 / 1e7
