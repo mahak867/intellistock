@@ -7,7 +7,6 @@ import {
   getPortfolio,
   addPortfolioEntry,
   removePortfolioEntry,
-  getSignal,
   getBrokerStatus,
   getLiveQuotes,
 } from "@/lib/api";
@@ -81,18 +80,9 @@ export default function PortfolioPage() {
           quotes = Object.fromEntries(rows.filter((q) => !q.synthetic).map((q) => [q.ticker, q.price]));
         }
       } catch { /* fall back below */ }
-      const withPrices = await Promise.all(
-        base.map(async (h) => {
-          if (quotes[h.ticker] !== undefined) return { ...h, current_price: quotes[h.ticker] };
-          if (placeholder) return { ...h, loadError: true };
-          try {
-            const signal = await getSignal(token, h.ticker);
-            return { ...h, current_price: signal.current_price };
-          } catch {
-            return { ...h, loadError: true };
-          }
-        })
-      );
+      // No price from Zerodha or the market API: show the holding unpriced rather than asking the old
+      // BUY/SELL signal endpoint, which is not a price source.
+      const withPrices = base.map((h) => (quotes[h.ticker] !== undefined ? { ...h, current_price: quotes[h.ticker] } : { ...h, loadError: true }));
       setHoldings(withPrices);
       setPlaceholderPrices(placeholder);
       setLiveAt(live);
