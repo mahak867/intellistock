@@ -27,6 +27,10 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Alerts** | Price-above, price-below and unusually-wide-day alerts, checked on the latest end-of-day close every 30 minutes (Celery beat). Telegram delivery uses your own bot token and has only been tested against a mock, not a live bot. Nothing is sent off-app while prices are placeholders or unlicensed |
 | **Fundamentals screener** | Filter and rank stocks on a CSV you export (for example from Screener.in): P/E, ROE, ROCE, debt/equity, promoter holding, growth. IntelliStock ships no fundamentals data |
 | **Broker (Zerodha)** | Connect your own Kite Connect app: live holdings, import into your portfolio, live prices (needs Kite's market-data add-on), and limit orders. Each order is previewed and confirmed within 2 minutes, a confirmation sends at most one order, prices more than 20% from the last price or orders over ₹10 lakh are refused as likely typos, and every order is logged. Keys and tokens are encrypted at rest. Tested against a simulated Kite API built from Zerodha's documented formats, not a live account |
+| **Mutual funds** | Import a CAS statement (CAMS, KFintech, NSDL, CDSL) or add funds by hand; valued at AMFI's daily NAV; XIRR from statement transactions. The CAS reader (casparser) has only been tested with synthetic data, not a real statement |
+| **Dividends, bonuses, splits** | Record them per holding (or pick from NSE's list; NSE's website blocks cloud servers, so lookup may fail there) and quantities, average price and returns include them |
+| **Return vs NIFTY 50** | XIRR per holding and overall, compared with the same cash flows in NIFTY 50; holdings under a year show plain return |
+| **Tax lots and harvesting** | FIFO lots from your tradebook, gains by financial year, and how much long-term gain fits in this year's Rs 1.25 lakh exemption |
 | **Mobile** | Phone layout with a bottom bar, installable from the browser (Add to Home Screen). No offline mode on purpose. Checked in an emulated 390px browser, not on a real phone |
 | **API** | FastAPI, JWT auth, refresh tokens, rate limiting, Redis caching |
 | **Security** | BCrypt passwords, token revocation, HTTPS-only headers, CORS, rate limits |
@@ -343,7 +347,8 @@ Two independent dashboards ship in this repo, both talking to the same backend A
 - Celery: `backend/core/celery_app.py` runs alert checks every `ALERT_CHECK_MINUTES` and a daily retrain (`RETRAIN_TICKERS`, default `RELIANCE`). Both tasks were run end to end through a real worker, Redis and Postgres on real NSE prices. Training reads the local NSE store when `DATA_PROVIDER` is `nse`/`local` (or `python train.py --data-source store`), otherwise Yahoo Finance. Retrained models are saved locally; wiring them to the model registry is not done.
 - Docker: CI builds the API image and boots it against Postgres and Redis, and brings up the whole `docker-compose.yml` stack (API, worker, scheduler, Flower, web app, Streamlit, Prometheus, Grafana), checks each service answers, and runs a Celery task through the worker.
 - Live data: the `Live data checks` workflow (manual and weekly) runs on GitHub's runners because NSE and Yahoo are reachable there: NSE format check, a one-week real NSE download, and a Yahoo fetch. It found and confirmed fixes for two real breakages (an outdated yfinance, and a calendar alignment bug that returned 0 rows).
-- Not tested: a real Zerodha account, a real Telegram bot, a real phone (emulated browsers only), and Windows or macOS for `scripts/demo.py`.
+- Demo on Windows, macOS and Linux: `Demo on Windows, macOS and Linux` workflow runs `scripts/demo.py` and `scripts/demo_smoke.py` on each, plus an iPhone check in Safari's engine on macOS.
+- Not tested: a real Zerodha account, a real Telegram bot, a real CAS statement, and a physical phone.
 - The backtesting engine (`ml/backtest/engine.py`) simulates a single ticker's history; it hasn't been run across the full NIFTY-50 universe.
 
 ---
