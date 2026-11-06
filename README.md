@@ -14,7 +14,7 @@
 
 IntelliStock is a full-stack, production-ready market intelligence platform built for the Indian equity market (NSE/BSE). It combines deep learning (Bidirectional LSTM with Bahdanau Attention) with classical technical analysis to show likely price ranges, risk and costs for Indian stocks.
 
-**Status, honestly:** a working full-stack app with a real API, authentication, 241 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); the real NSE file format has not been verified from the build environment. It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
+**Status, honestly:** a working full-stack app with a real API, authentication, 241 automated tests and a React UI. Prices are placeholders until you load NSE end-of-day files (`scripts/fetch_data.py`, see `LICENSING.md`); NSE's current equity and index files are checked against the parser by the `Live data checks` workflow (last run: PASS on the 5 Nov 2026 files). It is not deployed anywhere, has no users, and the price-direction forecast has no demonstrated edge, so the app shows ranges and risk, not buy/sell calls you should trade on.
 
 ---
 
@@ -341,7 +341,9 @@ Two independent dashboards ship in this repo, both talking to the same backend A
 - Model performance numbers in this README are from a synthetic-data development run used to validate the pipeline (see [Results](#-results)) — not yet run against live NSE data.
 - CI (`.github/workflows/ci.yml`) installs `requirements.txt` and runs `pytest backend/tests/`. It was added after an earlier broken workflow was removed; check the Actions tab for its current status. There is no automated deploy (Cloud Run or otherwise) yet.
 - Celery: `backend/core/celery_app.py` runs alert checks every `ALERT_CHECK_MINUTES` and a daily retrain (`RETRAIN_TICKERS`, default `RELIANCE`). Both tasks were run end to end through a real worker, Redis and Postgres on real NSE prices. Training reads the local NSE store when `DATA_PROVIDER` is `nse`/`local` (or `python train.py --data-source store`), otherwise Yahoo Finance. Retrained models are saved locally; wiring them to the model registry is not done.
-- Docker: CI builds the API image and starts it against Postgres and Redis (migrations run, health check must pass). Docker Compose as a whole has not been run.
+- Docker: CI builds the API image and boots it against Postgres and Redis, and brings up the whole `docker-compose.yml` stack (API, worker, scheduler, Flower, web app, Streamlit, Prometheus, Grafana), checks each service answers, and runs a Celery task through the worker.
+- Live data: the `Live data checks` workflow (manual and weekly) runs on GitHub's runners because NSE and Yahoo are reachable there: NSE format check, a one-week real NSE download, and a Yahoo fetch. It found and confirmed fixes for two real breakages (an outdated yfinance, and a calendar alignment bug that returned 0 rows).
+- Not tested: a real Zerodha account, a real Telegram bot, a real phone (emulated browsers only), and Windows or macOS for `scripts/demo.py`.
 - The backtesting engine (`ml/backtest/engine.py`) simulates a single ticker's history; it hasn't been run across the full NIFTY-50 universe.
 
 ---
