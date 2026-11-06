@@ -77,6 +77,10 @@ def browser(kind: str) -> None:
         pg.click("text=Calculate")
         pg.wait_for_selector("text=stocks match", timeout=60000)
         check(f"{kind}: a tool runs", True)
+        pg.goto(WEB + "/tools?tool=taxlots")
+        pg.click("text=Calculate")
+        pg.wait_for_selector("text=long-term gain you can still book", timeout=60000)
+        check(f"{kind}: tax lots and harvesting runs", True)
         check(f"{kind}: no page errors", not errors, errors[:2])
         b.close()
 
@@ -107,6 +111,9 @@ def main() -> int:
         call("DELETE", f"/users/alerts/{r['id']}", token=t)
     s, _ = call("POST", "/tools/costs", {"segment": "equity_delivery", "buy_price": 100, "sell_price": 110, "qty": 10})
     check("a tool endpoint answers", s == 200, s)
+    book = "trade_date,symbol,trade_type,quantity,price\n2024-01-10,TCS,buy,10,3000\n2025-09-15,TCS,sell,4,3800\n"
+    s, tl = call("POST", "/tools/tax/lots", {"csv": book, "prices": {"TCS": 4000}, "as_of": "2026-01-15"})
+    check("tax lots: FIFO gain and harvesting headroom", s == 200 and tl["realised"][0]["gain"] == 3200 and tl["harvest"]["headroom_left"] == 121800, (s, tl if s != 200 else tl["harvest"]))
     s, bs = call("GET", "/broker/status", token=t)
     check("broker status answers (not connected)", s == 200 and bs["connected"] is False, (s, bs))
     if a.browser:

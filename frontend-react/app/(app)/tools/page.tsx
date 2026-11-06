@@ -84,6 +84,7 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
   }
   if (tool.view === "screener") return <Screener data={data} />;
   if (tool.view === "fundscreen") return <FundScreen data={data} />;
+  if (tool.view === "taxlots") return <TaxLots data={data} />;
   if (tool.view === "portrisk") {
     const a = data.allocation, m = Object.keys(data.correlation.matrix);
     return (
@@ -114,6 +115,41 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
   if (tool.id === "check") return <div className={cn("rounded-xl border p-4 text-sm", data.pass ? "border-success/50" : "border-destructive/50")}><div className={cn("font-display text-xl font-semibold", data.pass ? "text-success" : "text-destructive")}>{data.pass ? "Clear to trade" : "Do not enter yet"}</div>{[...data.blocking, ...data.warnings].map((t: string) => <div key={t} className="mt-1 text-muted-foreground">{data.blocking.includes(t) ? "Blocking" : "Warning"}: {t}</div>)}</div>;
   if (tool.id === "day") return <div className="space-y-3"><div className={cn("font-display text-xl font-semibold", data.level === "stop" ? "text-destructive" : data.level === "warn" ? "text-warning" : "text-success")}>{data.level === "stop" ? "Stop trading today" : data.level === "warn" ? "Slow down" : "Within limits"}</div><Generic data={data} /></div>;
   return <Generic data={data} />;
+}
+
+const inr = (n: number | null | undefined) => (n == null ? "—" : `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`);
+
+function TaxLots({ data }: { data: any }) {
+  const h = data.harvest;
+  const years = Object.entries(data.realised_by_year as Record<string, any>).map(([fy, y]) => ({
+    year: fy, short_term_gain: Math.round(y.stcg), long_term_gain: Math.round(y.ltcg),
+    tax_estimate: y.estimated_tax_with_cess == null ? "not estimated" : Math.round(y.estimated_tax_with_cess),
+  }));
+  return (
+    <div className="space-y-4">
+      {data.warnings.length > 0 && (
+        <ul role="alert" className="list-disc space-y-1 rounded-lg border border-warning/50 bg-warning/10 py-2 pl-8 pr-3 text-sm text-warning">
+          {data.warnings.map((w: string) => <li key={w}>{w}</li>)}
+        </ul>
+      )}
+      <section className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+        <h3 className="text-sm font-medium">Financial year {h.financial_year}: long-term gain you can still book tax-free</h3>
+        <p className="font-num mt-1 text-2xl font-semibold">{inr(h.headroom_left)}</p>
+        <p className="text-xs text-muted-foreground">of the {inr(h.ltcg_exemption)} exemption; {inr(h.exemption_used_so_far)} used by sales so far this year.</p>
+        {h.suggested_sales.length > 0 ? (
+          <div className="mt-3"><Table rows={h.suggested_sales} /></div>
+        ) : <p className="mt-2 text-sm text-muted-foreground">Nothing to harvest: no long-term lots with a gain at the prices given.</p>}
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">{h.notes.map((n: string) => <li key={n}>{n}</li>)}</ul>
+      </section>
+      {h.loss_lots_first_in_line.length > 0 && (
+        <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">Lots sitting at a loss (next in line if you sell)</h3><Table rows={h.loss_lots_first_in_line} /></section>
+      )}
+      <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">Gains by financial year</h3><Table rows={years} /></section>
+      <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">What you still hold, lot by lot</h3><Table rows={data.open_lots.map((l: any) => { const { fmv: _f, ...rest } = l; void _f; return rest; })} /></section>
+      <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">Every sale matched to its buy</h3><Table rows={data.realised.map((r: any) => { const { flag: _g, ...rest } = r; void _g; return rest; })} max={200} /></section>
+      <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">{data.disclaimer}</p>
+    </div>
+  );
 }
 
 function FundScreen({ data }: { data: { total: number; matched: number; shown: number; rows: Record<string, unknown>[]; left_out_for_missing_data: Record<string, number>; filters_on_missing_columns: string[]; columns_recognised: Record<string, string>; note: string } }) {

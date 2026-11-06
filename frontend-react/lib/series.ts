@@ -25,6 +25,11 @@ export function dataLabel(s: Series | null): string {
 }
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1");
 
+// Set when the page is being left (full navigation, tab close). Fetches then fail as "cancelled", and starting
+// fallback requests at that moment only produces blocked-request errors in Safari.
+let leaving = false;
+if (typeof window !== "undefined") window.addEventListener("pagehide", () => { leaving = true; });
+
 const authHeaders = (token: string | null | undefined): Record<string, string> => (token && token !== "demo" ? { Authorization: `Bearer ${token}` } : {});
 
 /** Price series for one stock. Order: the market API (real NSE data when configured), then the older
@@ -45,7 +50,7 @@ export function useSeries(ticker: string, horizon: number): Series | null {
           return;
         }
       } catch { /* API offline or timed out: try the next source */ }
-      if (off) return; // the page moved on: do not start more requests
+      if (off || leaving) return; // the page moved on: do not start more requests
       if (token && token !== "demo") {
         try {
           const [o, p] = await Promise.all([getOhlcv(token, ticker, 260), getPrediction(token, ticker, horizon)]);

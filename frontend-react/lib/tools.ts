@@ -8,7 +8,7 @@ export type Tool = {
   method: "POST" | "GET"; path: string; demoData?: boolean; fields: Field[];
   build: (v: Record<string, string>) => unknown | null; // null for GET
   pathFor?: (v: Record<string, string>) => string;
-  view?: "payoff" | "backtest" | "screener" | "portrisk" | "fundscreen";
+  view?: "payoff" | "backtest" | "screener" | "portrisk" | "fundscreen" | "taxlots";
 };
 
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
@@ -213,6 +213,23 @@ SAMPLE-C (made up),22,25,30,0.0,70,40,100` },
     blurb: "Paste exchange filings, one per line: symbol, YYYY-MM-DD, headline. A keyword classifier sorts what matters. It does not read the filing for you.",
     fields: [{ name: "rows", label: "symbol, date, headline", type: "textarea", rows: 5, def: "TCS,2026-11-01,Board approves interim dividend of Rs 10 per share\nITC,2026-11-01,Intimation of analyst meet\nWIPRO,2026-10-31,Resignation of Chief Financial Officer" }],
     build: (v) => csvRows(v.rows).map(([symbol, date, ...t]) => ({ symbol, date, title: t.join(", ") })),
+  },
+  {
+    id: "taxlots", group: "Investor", title: "Tax lots and LTCG harvesting", method: "POST", path: "/tools/tax/lots", view: "taxlots",
+    blurb: "Paste your tradebook (Zerodha Console > Reports > Tradebook, equity, as CSV; other brokers work if the file has date, symbol, buy/sell, quantity and price). You get gains by financial year, what you still hold lot by lot (first in, first out, as your demat sells them), and how much long-term gain you can still book this year inside the Rs 1.25 lakh exemption. An estimate: confirm with a chartered accountant.",
+    fields: [
+      { name: "csv", label: "Tradebook CSV", type: "textarea", rows: 8, def: "trade_date,symbol,trade_type,quantity,price\n2024-01-10,SAMPLE-A,buy,10,3000\n2025-08-01,SAMPLE-A,buy,5,3500\n2025-09-15,SAMPLE-A,sell,4,3800\n2023-05-02,SAMPLE-B,buy,100,800" },
+      { name: "prices", label: "Current prices, one per line: SYMBOL=price (blank uses this server's latest close)", type: "textarea", rows: 3, def: "SAMPLE-A=4000\nSAMPLE-B=1800", optional: true },
+    ],
+    build: (v) => {
+      const prices: Record<string, number> = {};
+      for (const line of String(v.prices || "").split(/\n/)) {
+        const [k, p] = line.split("=").map((x) => x.trim());
+        const n = Number(p);
+        if (k && Number.isFinite(n) && n > 0) prices[k.toUpperCase()] = n;
+      }
+      return { csv: v.csv, prices };
+    },
   },
   {
     id: "tax", group: "Investor", title: "Capital gains estimate", method: "POST", path: "/tools/tax/capital-gains",

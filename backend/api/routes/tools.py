@@ -6,6 +6,7 @@ from dataclasses import asdict
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
+import math
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from backend.tools import calendar as CAL
 from backend.tools import costs as CO
 from backend.tools import fundamentals as FU
 from backend.tools import fundscreen as FS
+from backend.tools import taxlots as TL
 from backend.tools import journal as J
 from backend.tools import options as O
 from backend.tools import planner as PL
@@ -290,6 +292,41 @@ def tax_gains(fills: list[FillIn]):
         _bad(e)
     return {"summary": TX.tax_summary(g), "lots": [{**x, "sell_date": str(x["sell_date"]), "buy_date": str(x["buy_date"])} for x in g],
             "disclaimer": "Estimate for listed-equity delivery trades only. A chartered accountant must confirm before you file."}
+
+
+class TaxLotsIn(BaseModel):
+    csv: str = Field(max_length=5_000_000)
+    prices: dict[str, float] | None = None  # symbol -> current price; missing symbols use the latest close on this server
+    as_of: date | None = None
+
+
+@router.post("/tax/lots", summary="FIFO tax lots, realised gains by year, and LTCG harvesting from your tradebook")
+def tax_lots(b: TaxLotsIn):
+    from backend.data import providers
+
+    as_of = b.as_of or date.today()
+    prices = {k.strip().upper(): float(v) for k, v in (b.prices or {}).items() if v and v > 0 and math.isfinite(v)}
+    try:
+        fills, _ = TL.parse_tradebook(b.csv)
+    except ValueError as e:
+        _bad(e)
+    sources, placeholder = {}, False
+    for s in sorted({f["symbol"] for f in fills} - set(prices))[:200]:
+        try:
+            pr = providers.get_prices(s, 260)
+            prices[s] = float(pr.df["close"].iloc[-1])
+            sources[s] = pr.source
+            placeholder = placeholder or pr.synthetic
+        except Exception:
+            continue
+    try:
+        out = TL.report(b.csv, prices, as_of)
+    except ValueError as e:
+        _bad(e)
+    out["price_sources"] = {**{k: "you" for k in (b.prices or {})}, **sources}
+    if placeholder:
+        out["warnings"].insert(0, "Some current prices are PLACEHOLDERS (this server has no real price data), so open-lot values and harvesting numbers are illustrations only. Enter real prices or connect Zerodha.")
+    return out
 
 
 @router.post("/fundamentals/score")
