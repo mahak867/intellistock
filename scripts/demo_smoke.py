@@ -157,11 +157,11 @@ def main() -> int:
     check("news endpoint answers", s == 200, s)
     s, wl2 = call("POST", "/stocks/watchlist", {"ticker": "SBIN", "list_name": "Banks"}, token=t)
     check("named watchlist", s == 201, s)
-    s, a = call("POST", "/assets", {"kind": "fd", "name": "Smoke FD", "amount": 100000, "rate": 7, "start_date": "2025-01-01"}, token=t)
+    s, fd = call("POST", "/assets", {"kind": "fd", "name": "Smoke FD", "amount": 100000, "rate": 7, "start_date": "2025-01-01"}, token=t)
     s2, nw = call("GET", "/assets", token=t)
     check("deposit added and counted in net worth", s == 201 and s2 == 200 and nw["net_worth"]["other"] > 100000, (s, s2))
     if s == 201:
-        call("DELETE", f"/assets/{a['id']}", token=t)
+        call("DELETE", f"/assets/{fd['id']}", token=t)
     s, bs = call("GET", "/broker/status", token=t)
     check("broker status answers (not connected)", s == 200 and bs["connected"] is False, (s, bs))
     if a.browser:
