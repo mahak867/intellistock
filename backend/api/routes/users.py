@@ -47,6 +47,7 @@ class PortfolioAddRequest(BaseModel):
     avg_buy_price: float = Field(gt=0)
     buy_date: datetime
     notes: OptNoNul = Field(default=None, max_length=500)
+    account: str = Field(default="Me", pattern=r"^[A-Za-z0-9 ._&()-]{1,40}$")
 
 
 class AlertAddRequest(BaseModel):
@@ -121,6 +122,7 @@ async def add_portfolio_entry(
             avg_buy_price=payload.avg_buy_price,
             buy_date=payload.buy_date,
             notes=payload.notes,
+            account=payload.account.strip(),
         )
         session.add(entry)
         await session.flush()

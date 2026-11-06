@@ -50,6 +50,7 @@ class ManualIn(BaseModel):
     invested: float = Field(gt=0, lt=1e12, allow_inf_nan=False)
     date: date
     folio: str = Field(default="", max_length=40, pattern=r"^[A-Za-z0-9/ -]*$")
+    account: str = Field(default="Me", pattern=r"^[A-Za-z0-9 ._&()-]{1,40}$")
 
 
 @router.post("", status_code=201)
@@ -62,7 +63,7 @@ async def add_manual(b: ManualIn, user: dict = Depends(get_current_user)) -> dic
         raise HTTPException(status_code=422, detail="The date is in the future.")
     async with get_session() as s:
         h = FundHolding(user_id=user["sub"], folio=b.folio, scheme_key=b.scheme_code, scheme_code=b.scheme_code, isin=n.isins[0] if n.isins else None,
-                        scheme_name=n.name[:200], units=b.units, invested=b.invested, last_nav=n.nav, last_nav_date=n.date, source="manual")
+                        account=b.account.strip(), scheme_name=n.name[:200], units=b.units, invested=b.invested, last_nav=n.nav, last_nav_date=n.date, source="manual")
         s.add(h)
         try:
             await s.flush()
@@ -73,7 +74,9 @@ async def add_manual(b: ManualIn, user: dict = Depends(get_current_user)) -> dic
 
 
 @router.post("/import-cas")
-async def import_cas(file: UploadFile = File(...), password: str = Form(..., min_length=1, max_length=64), user: dict = Depends(get_current_user)) -> dict:
+async def import_cas(file: UploadFile = File(...), password: str = Form(..., min_length=1, max_length=64),
+                     account: str = Form(default="Me", pattern=r"^[A-Za-z0-9 ._&()-]{1,40}$"), user: dict = Depends(get_current_user)) -> dict:
+    """Importing for one family member replaces only that member's imported funds."""
     data = await file.read(MAX_PDF + 1)
     if len(data) > MAX_PDF:
         raise HTTPException(status_code=413, detail="The file is over 10 MB; a CAS statement is much smaller.")
@@ -89,7 +92,7 @@ async def import_cas(file: UploadFile = File(...), password: str = Form(..., min
     if not rows:
         raise HTTPException(status_code=422, detail="No mutual fund holdings found in this statement.")
     async with get_session() as s:
-        old = (await s.execute(select(FundHolding.id).where(FundHolding.user_id == user["sub"], FundHolding.source == "cas"))).scalars().all()
+        old = (await s.execute(select(FundHolding.id).where(FundHolding.user_id == user["sub"], FundHolding.source == "cas", FundHolding.account == account.strip()))).scalars().all()
         if old:
             await s.execute(delete(FundTransaction).where(FundTransaction.holding_id.in_(old)))
             await s.execute(delete(FundHolding).where(FundHolding.id.in_(old)))
@@ -98,7 +101,7 @@ async def import_cas(file: UploadFile = File(...), password: str = Form(..., min
             if r["units"] <= 1e-6:
                 continue  # fully redeemed
             key = r["scheme_code"] or r["isin"] or r["scheme_name"][:20]
-            h = FundHolding(user_id=user["sub"], folio=r["folio"], scheme_key=key[:20], scheme_code=(r["scheme_code"] or None) and r["scheme_code"][:10],
+            h = FundHolding(user_id=user["sub"], account=account.strip(), folio=r["folio"], scheme_key=key[:20], scheme_code=(r["scheme_code"] or None) and r["scheme_code"][:10],
                             isin=(r["isin"] or None) and r["isin"][:12], scheme_name=r["scheme_name"], units=r["units"], invested=r["invested"],
                             last_nav=r["last_nav"], last_nav_date=r["last_nav_date"], source="cas")
             s.add(h)
@@ -140,7 +143,7 @@ async def list_funds(user: dict = Depends(get_current_user)) -> dict:
         if value and flows and any(a < 0 for _, a in flows) and (today - min(d for d, _ in flows)).days >= 365:
             x = PF.xirr(flows + [(today, value)])
             all_flows += flows
-        rows.append({"id": h.id, "scheme_name": h.scheme_name, "scheme_code": h.scheme_code, "folio": h.folio, "units": round(h.units, 4),
+        rows.append({"id": h.id, "account": h.account or "Me", "scheme_name": h.scheme_name, "scheme_code": h.scheme_code, "folio": h.folio, "units": round(h.units, 4),
                      "nav": nav, "nav_date": str(nav_date) if nav_date else None, "nav_source": src, "invested": h.invested,
                      "value": round(value, 2) if value else None,
                      "gain": round(value - h.invested, 2) if value and h.invested else None,

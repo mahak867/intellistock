@@ -59,3 +59,27 @@ jobs:
           for r in rows[:8]: print(r)
           assert any(r["kind"] == "dividend" for r in rows), "no dividends parsed"
           PY
+      - name: Yahoo fundamentals and the live fundamentals screener
+        run: |
+          python - <<'PY'
+          from backend.data import fundamentals_feed as FF
+          r = FF.fetch_one("TCS"); print(r)
+          assert r["pe"] and 5 < r["pe"] < 100, "P/E missing or odd"
+          assert r["roe"] and 5 < r["roe"] < 100, "ROE should be a percent"
+          assert r["market_cap_cr"] and r["market_cap_cr"] > 100000, "market cap in crore looks wrong"
+          assert r["dividend_yield"] is None or r["dividend_yield"] < 15, "dividend yield units look wrong"
+          rows, missing = FF.fetch_many(["RELIANCE", "INFY", "HDFCBANK", "ITC", "SBIN"])
+          print(len(rows), "fetched; missing", missing)
+          assert len(rows) >= 4
+          PY
+      - name: Google News headlines
+        run: |
+          python - <<'PY'
+          from backend.data import news as N
+          r = N.news("TCS", "Tata Consultancy Services"); print(len(r), r[:2])
+          assert len(r) >= 3
+          PY
+      - name: NSE announcements (unofficial; NSE sometimes blocks cloud runners)
+        continue-on-error: true
+        run: |
+          python -c "from backend.data import news as N; r = N.announcements('TCS'); print(len(r), r[:2]); assert r"

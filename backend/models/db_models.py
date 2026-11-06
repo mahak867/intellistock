@@ -97,7 +97,7 @@ class User(Base, TimestampMixin):
 class WatchlistItem(Base, TimestampMixin):
     __tablename__ = "watchlist_items"
     __table_args__ = (
-        UniqueConstraint("user_id", "ticker", name="uq_watchlist_user_ticker"),
+        UniqueConstraint("user_id", "list_name", "ticker", name="uq_watchlist_user_list_ticker"),
     )
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
@@ -109,6 +109,7 @@ class WatchlistItem(Base, TimestampMixin):
     )
     ticker = Column(String(20), nullable=False)
     exchange = Column(String(10), nullable=False, default="NSE")
+    list_name = Column(String(40), nullable=False, default="Main", server_default="Main")
     notes = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="watchlist_items")
@@ -218,6 +219,7 @@ class PortfolioEntry(Base, TimestampMixin):
     )
     ticker = Column(String(20), nullable=False)
     exchange = Column(String(10), nullable=False, default="NSE")
+    account = Column(String(40), nullable=False, default="Me", server_default="Me")  # whose holding (family view)
     quantity = Column(Float, nullable=False)
     avg_buy_price = Column(Float, nullable=False)
     buy_date = Column(DateTime(timezone=True), nullable=False)
@@ -348,13 +350,14 @@ class CorporateAction(Base, TimestampMixin):
 
 class FundHolding(Base, TimestampMixin):
     __tablename__ = "fund_holdings"
-    __table_args__ = (UniqueConstraint("user_id", "folio", "scheme_key", name="uq_fund_holding"),)
+    __table_args__ = (UniqueConstraint("user_id", "account", "folio", "scheme_key", name="uq_fund_holding_account"),)
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     user_id = Column(
         UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     folio = Column(String(40), nullable=False, default="")
+    account = Column(String(40), nullable=False, default="Me", server_default="Me")
     scheme_key = Column(String(20), nullable=False)        # AMFI code, else ISIN
     scheme_code = Column(String(10), nullable=True)        # AMFI scheme code
     isin = Column(String(12), nullable=True)

@@ -27,7 +27,7 @@ async def adjusted(session, user_id: str) -> list[dict]:
     out = []
     for e in entries:
         adj = CA.adjust(e.quantity, e.avg_buy_price, _d(e.buy_date), by_t.get(e.ticker, []))
-        out.append({"id": str(e.id), "ticker": e.ticker, "exchange": e.exchange, "quantity": adj["quantity"], "avg_buy_price": adj["avg_price"],
+        out.append({"id": str(e.id), "ticker": e.ticker, "exchange": e.exchange, "account": e.account or "Me", "quantity": adj["quantity"], "avg_buy_price": adj["avg_price"],
                     "raw_quantity": e.quantity, "raw_avg_buy_price": e.avg_buy_price, "invested_value": e.quantity * e.avg_buy_price,
                     "buy_date": e.buy_date.isoformat(), "notes": e.notes, "adjustments": [{**x, "ex_date": str(x["ex_date"])} for x in adj["applied"]],
                     "dividends": [{**x, "ex_date": str(x["ex_date"])} for x in adj["dividends"]], "dividends_received": adj["dividends_total"]})
@@ -65,7 +65,7 @@ def performance(holdings: list[dict], prices: dict[str, float], today: date) -> 
         bd = date.fromisoformat(h["buy_date"][:10])
         cost = h["raw_quantity"] * h["raw_avg_buy_price"]
         flows = [(bd, -cost)] + [(date.fromisoformat(d["ex_date"]), d["cash"]) for d in h["dividends"]]
-        row = {"ticker": h["ticker"], "buy_date": str(bd), "invested": round(cost, 2), "dividends": h["dividends_received"],
+        row = {"ticker": h["ticker"], "account": h.get("account", "Me"), "buy_date": str(bd), "invested": round(cost, 2), "dividends": h["dividends_received"],
                "price": p, "value": None, "gain": None, "return_pct": None, "xirr": None, "nifty_xirr": None, "note": None}
         if p:
             value = h["quantity"] * p

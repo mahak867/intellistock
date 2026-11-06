@@ -179,6 +179,24 @@ export const TOOLS: Tool[] = [
     build: (v) => { const r = csvRows(v.rows); return { values: Object.fromEntries(r.map(([n, val]) => [n, +val])), targets: Object.fromEntries(r.map(([n, , t]) => [n, +t / 100])), new_cash: num(v.cash) ?? 0 }; },
   },
   {
+    id: "fscreenlive", group: "Investor", title: "Fundamentals screener (live data)", method: "POST", path: "/tools/screener/fundamentals/live", view: "fundscreen",
+    blurb: "Screens NIFTY 50 (or your own list) on company numbers fetched from Yahoo Finance and cached for a day. The first run takes a little while. Yahoo has no promoter holding or pledge data for Indian stocks.",
+    fields: [
+      { name: "universe", label: "Stocks", type: "select", options: ["nifty50", "custom"], def: "nifty50" },
+      { name: "tickers", label: "Your list (if custom), comma separated", type: "text", def: "", optional: true },
+      { name: "roe_min", label: "ROE at least %", type: "number", def: "15", optional: true },
+      { name: "pe_max", label: "P/E at most", type: "number", def: "40", optional: true },
+      { name: "de_max", label: "Debt / equity at most", type: "number", def: "1", optional: true },
+      { name: "sort", label: "Sort by", type: "select", options: ["quality", "roe", "pe", "pb", "debt_equity", "market_cap_cr", "dividend_yield", "sales_growth"], def: "quality" },
+    ],
+    build: (v) => {
+      const f: { field: string; min?: number; max?: number }[] = [];
+      const add = (field: string, key: string, kind: "min" | "max") => { const n = num(v[key]); if (n !== undefined && Number.isFinite(n)) f.push({ field, [kind]: n }); };
+      add("roe", "roe_min", "min"); add("pe", "pe_max", "max"); add("debt_equity", "de_max", "max");
+      return { universe: v.universe, tickers: String(v.tickers || "").split(",").map((t) => t.trim()).filter(Boolean), filters: f, sort: v.sort, limit: 100 };
+    },
+  },
+  {
     id: "fscreen", group: "Investor", title: "Fundamentals screener", method: "POST", path: "/tools/screener/fundamentals", view: "fundscreen",
     blurb: "IntelliStock has no fundamentals feed, so bring your own: export a screen from Screener.in (or any CSV with a name column and columns like P/E, ROE, ROCE, Debt / Eq) and paste it. Filters use your numbers exactly. Stocks missing a number you filter on are left out and counted.",
     fields: [

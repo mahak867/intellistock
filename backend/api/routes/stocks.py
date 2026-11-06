@@ -35,6 +35,7 @@ class WatchlistAddRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9._&-]+$")
     exchange: Exchange = "NSE"
     notes: OptNoNul = Field(default=None, max_length=500)
+    list_name: str = Field(default="Main", pattern=r"^[A-Za-z0-9 ._&()-]{1,40}$")
 
 
 class OHLCVResponse(BaseModel):
@@ -152,9 +153,10 @@ async def add_to_watchlist(
             ticker=payload.ticker.upper(),
             exchange=payload.exchange,
             notes=payload.notes,
+            list_name=payload.list_name.strip(),
         )
     except IntegrityError:
-        raise HTTPException(status_code=409, detail=f"{payload.ticker.upper()} is already on your watchlist")
+        raise HTTPException(status_code=409, detail=f"{payload.ticker.upper()} is already on the {payload.list_name.strip()} list")
     return {"message": "Added to watchlist", "id": str(item.id)}
 
 

@@ -81,11 +81,16 @@ def parse(csv_text: str) -> tuple[pd.DataFrame, dict]:
 
 
 def screen(csv_text: str, filters: list[dict], sort: str = "quality", limit: int = 50) -> dict:
+    df, info = parse(csv_text)
+    return screen_frame(df, info, filters, sort, limit)
+
+
+def screen_frame(df: pd.DataFrame, info: dict, filters: list[dict], sort: str = "quality", limit: int = 50) -> dict:
+    """df: a symbol column plus any of FIELDS. info: {"rows": n, "recognised": {field: source column}}."""
     if len(filters) > MAX_FILTERS:
         raise ValueError(f"At most {MAX_FILTERS} filters.")
     if sort != "quality" and sort not in FIELDS:
         raise ValueError(f"Cannot sort by {sort}.")
-    df, info = parse(csv_text)
     keep = pd.Series(True, index=df.index)
     excluded: dict[str, int] = {}
     unavailable = []

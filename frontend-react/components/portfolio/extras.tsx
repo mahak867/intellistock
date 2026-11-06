@@ -14,19 +14,27 @@ const tone = (n: number | null | undefined) => (n == null ? "" : n >= 0 ? "text-
 const describe = (a: CorpAction) => a.kind === "dividend" ? `Dividend ₹${a.amount} per share` : a.kind === "bonus" ? `Bonus ${a.ratio_new}:${a.ratio_old}` : `Split, face value ₹${a.ratio_new} to ₹${a.ratio_old}`;
 
 export function PerformanceCard({ token, tick }: { token: string; tick: number }) {
-  const [p, setP] = React.useState<Performance | null>(null);
+  const [p, setP] = React.useState<(Performance & { accounts: string[] }) | null>(null);
+  const [account, setAccount] = React.useState<string>("");
   const [err, setErr] = React.useState<string | null>(null);
   React.useEffect(() => {
     let live = true;
-    getPerformance(token).then((r) => live && setP(r)).catch((e) => live && setErr(e instanceof Error ? e.message : "Could not load"));
+    getPerformance(token, account || null).then((r) => live && setP(r)).catch((e) => live && setErr(e instanceof Error ? e.message : "Could not load"));
     return () => { live = false; };
-  }, [token, tick]);
+  }, [token, tick, account]);
   if (err) return <p className="text-sm text-destructive">{err}</p>;
   if (!p || !p.holdings.length) return null;
   const t = p.total;
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base text-foreground">Your return vs NIFTY 50</CardTitle></CardHeader>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle className="text-base text-foreground">Your return vs NIFTY 50</CardTitle>
+        {p.accounts.length > 1 && (
+          <select aria-label="Whose holdings" value={account} onChange={(e) => setAccount(e.target.value)} className="h-9 rounded-lg border border-border bg-card px-2 text-sm">
+            <option value="">Everyone</option>{p.accounts.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
+      </CardHeader>
       <CardContent className="space-y-3">
         {p.warning && <p role="status" className="rounded-lg border border-warning/50 bg-warning/10 px-3 py-2 text-sm text-warning">{p.warning}</p>}
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -21,6 +21,9 @@ export default function FundsPage() {
   const [tick, setTick] = React.useState(0);
   const [loadErr, setLoadErr] = React.useState<string | null>(null);
   const refresh = () => setTick((t) => t + 1);
+  const [who, setWho] = React.useState("");
+  const accounts = React.useMemo(() => Array.from(new Set((view?.funds ?? []).map((f) => f.account))).sort(), [view]);
+  const shown = (view?.funds ?? []).filter((f) => !who || f.account === who);
 
   React.useEffect(() => {
     if (!token) return;
@@ -44,7 +47,14 @@ export default function FundsPage() {
 
       {view && view.funds.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base text-foreground">Your funds</CardTitle></CardHeader>
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base text-foreground">Your funds</CardTitle>
+            {accounts.length > 1 && (
+              <select aria-label="Whose funds" value={who} onChange={(e) => setWho(e.target.value)} className="h-9 rounded-lg border border-border bg-card px-2 text-sm">
+                <option value="">Everyone</option>{accounts.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            )}
+          </CardHeader>
           <CardContent className="space-y-3">
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div><dt className="text-xs text-muted-foreground">Invested</dt><dd className="font-num text-xl font-semibold">{inr(view.total.invested)}</dd></div>
@@ -57,9 +67,9 @@ export default function FundsPage() {
               <table className="w-full min-w-max text-sm">
                 <thead className="bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="px-3 py-2">Fund</th><th className="px-3 py-2 text-right">Units</th><th className="px-3 py-2 text-right">NAV</th><th className="px-3 py-2 text-right">Invested</th><th className="px-3 py-2 text-right">Value</th><th className="px-3 py-2 text-right">XIRR</th><th className="px-3 py-2" /></tr></thead>
                 <tbody className="font-num">
-                  {view.funds.map((f) => (
+                  {shown.map((f) => (
                     <tr key={f.id} className="border-t border-border">
-                      <td className="max-w-[18rem] px-3 py-2 font-sans"><div className="truncate font-medium" title={f.scheme_name}>{f.scheme_name}</div><div className="text-xs text-muted-foreground">{f.folio ? `Folio ${f.folio} · ` : ""}{f.source === "cas" ? "from CAS" : "added by hand"}</div></td>
+                      <td className="max-w-[18rem] px-3 py-2 font-sans"><div className="truncate font-medium" title={f.scheme_name}>{f.scheme_name}</div><div className="text-xs text-muted-foreground">{accounts.length > 1 ? `${f.account} · ` : ""}{f.folio ? `Folio ${f.folio} · ` : ""}{f.source === "cas" ? "from CAS" : "added by hand"}</div></td>
                       <td className="px-3 py-2 text-right">{f.units}</td>
                       <td className="px-3 py-2 text-right" title={`${f.nav_source === "amfi" ? "AMFI" : "your statement"}, ${f.nav_date ?? ""}`}>{f.nav ?? "—"}</td>
                       <td className="px-3 py-2 text-right">{inr(f.invested)}</td>
@@ -85,13 +95,14 @@ export default function FundsPage() {
 function ImportCas({ token, onDone }: { token: string; onDone: () => void }) {
   const [file, setFile] = React.useState<File | null>(null);
   const [pw, setPw] = React.useState("");
+  const [acct, setAcct] = React.useState("Me");
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState<{ ok: boolean; text: string } | null>(null);
   const go = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
     setBusy(true); setNote(null);
-    try { const r = await importCas(token, file, pw); setNote({ ok: true, text: [r.message, ...r.notes].join(" ") }); setPw(""); onDone(); }
+    try { const r = await importCas(token, file, pw, acct.trim() || "Me"); setNote({ ok: true, text: [r.message, ...r.notes].join(" ") }); setPw(""); onDone(); }
     catch (e) { setNote({ ok: false, text: err(e, "Import failed") }); }
     finally { setBusy(false); }
   };
@@ -105,6 +116,8 @@ function ImportCas({ token, onDone }: { token: string; onDone: () => void }) {
             <input id="cas-file" required type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2" /></div>
           <div className="space-y-1"><label htmlFor="cas-pw" className="text-xs text-muted-foreground">PDF password</label>
             <input id="cas-pw" required type="password" autoComplete="off" value={pw} onChange={(e) => setPw(e.target.value)} className={inputCls} /></div>
+          <div className="space-y-1"><label htmlFor="cas-acct" className="text-xs text-muted-foreground">Whose statement (family member)</label>
+            <input id="cas-acct" maxLength={40} value={acct} onChange={(e) => setAcct(e.target.value)} className={inputCls} /></div>
           <Button type="submit" disabled={busy || !file}>{busy ? "Reading…" : "Import"}</Button>
           <p className="text-xs text-muted-foreground">The password opens the file on the server and is not stored.</p>
           {note && <p role="status" className={note.ok ? "text-success" : "text-destructive"}>{note.text}</p>}
@@ -121,6 +134,7 @@ function AddManual({ token, onDone }: { token: string; onDone: () => void }) {
   const [units, setUnits] = React.useState("");
   const [inv, setInv] = React.useState("");
   const [d, setD] = React.useState("");
+  const [acct, setAcct] = React.useState("Me");
   const [note, setNote] = React.useState<{ ok: boolean; text: string } | null>(null);
   const find = async () => {
     setNote(null);
@@ -130,7 +144,7 @@ function AddManual({ token, onDone }: { token: string; onDone: () => void }) {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pick) return;
-    try { await addFund(token, { scheme_code: pick.scheme_code, units: Number(units), invested: Number(inv), date: d }); setNote({ ok: true, text: `Added ${pick.name}.` }); setPick(null); setHits([]); setUnits(""); setInv(""); onDone(); }
+    try { await addFund(token, { scheme_code: pick.scheme_code, units: Number(units), invested: Number(inv), date: d, account: acct.trim() || "Me" }); setNote({ ok: true, text: `Added ${pick.name}.` }); setPick(null); setHits([]); setUnits(""); setInv(""); onDone(); }
     catch (e) { setNote({ ok: false, text: err(e, "Not added") }); }
   };
   return (
@@ -151,6 +165,7 @@ function AddManual({ token, onDone }: { token: string; onDone: () => void }) {
             <div className="space-y-1"><label htmlFor="mf-u" className="text-xs text-muted-foreground">Units</label><input id="mf-u" required type="number" step="any" min={0.001} inputMode="decimal" value={units} onChange={(e) => setUnits(e.target.value)} className={inputCls} /></div>
             <div className="space-y-1"><label htmlFor="mf-i" className="text-xs text-muted-foreground">Amount invested (₹)</label><input id="mf-i" required type="number" step="any" min={1} inputMode="decimal" value={inv} onChange={(e) => setInv(e.target.value)} className={inputCls} /></div>
             <div className="space-y-1"><label htmlFor="mf-d" className="text-xs text-muted-foreground">Date</label><input id="mf-d" required type="date" value={d} onChange={(e) => setD(e.target.value)} className={inputCls} /></div>
+            <div className="space-y-1 sm:col-span-3"><label htmlFor="mf-a" className="text-xs text-muted-foreground">Whose (family member)</label><input id="mf-a" maxLength={40} value={acct} onChange={(e) => setAcct(e.target.value)} className={inputCls} /></div>
             <div className="sm:col-span-3"><Button type="submit">Add fund</Button></div>
           </form>
         )}

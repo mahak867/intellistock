@@ -14,7 +14,7 @@ import uuid
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -51,12 +51,14 @@ class ActionIn(BaseModel):
 
 
 @router.get("/portfolio/performance")
-async def portfolio_performance(user: dict = Depends(get_current_user)) -> dict:
+async def portfolio_performance(account: str | None = Query(default=None, max_length=40), user: dict = Depends(get_current_user)) -> dict:
+    """account: one family member's holdings only; omit for everyone together."""
     async with get_session() as s:
-        hold = await H.adjusted(s, user["sub"])
+        everything = await H.adjusted(s, user["sub"])
+        hold = [h for h in everything if account is None or h["account"] == account]
         prices, source, real = await H.prices_for(s, user["sub"], sorted({h["ticker"] for h in hold}))
     out = await asyncio.to_thread(H.performance, hold, prices, H.today_ist())
-    out.update(price_source=source, real_prices=real)
+    out.update(price_source=source, real_prices=real, accounts=sorted({h["account"] for h in everything}), account=account)
     if not real:
         out["warning"] = "Prices are PLACEHOLDERS on this server, so values and returns are illustrations only. Connect Zerodha or load NSE data."
     return out

@@ -186,15 +186,15 @@ export async function runBacktest(
 // ── Stocks / Watchlist ───────────────────────────────────────────────────
 export async function getWatchlist(token: string) {
   return request<{
-    watchlist: { id: string; ticker: string; exchange: string; notes: string | null }[];
+    watchlist: { id: string; ticker: string; exchange: string; notes: string | null; list_name: string }[];
     count: number;
   }>("/stocks/watchlist", token);
 }
 
-export async function addToWatchlist(token: string, ticker: string) {
+export async function addToWatchlist(token: string, ticker: string, list_name = "Main") {
   return request("/stocks/watchlist", token, {
     method: "POST",
-    body: JSON.stringify({ ticker, exchange: "NSE" }),
+    body: JSON.stringify({ ticker, exchange: "NSE", list_name }),
   });
 }
 
@@ -232,7 +232,7 @@ export async function getPortfolio(token: string) {
 
 export async function addPortfolioEntry(
   token: string,
-  entry: { ticker: string; quantity: number; avg_buy_price: number; buy_date: string; exchange?: string }
+  entry: { ticker: string; quantity: number; avg_buy_price: number; buy_date: string; exchange?: string; account?: string }
 ) {
   return request<{ message: string; id: string }>("/users/portfolio", token, {
     method: "POST",
@@ -362,7 +362,8 @@ export interface PerfRow { ticker: string; buy_date: string; invested: number; d
 export interface Performance { as_of: string; holdings: PerfRow[]; total: { invested: number; value: number; dividends: number; gain: number; xirr: number | null; nifty_xirr: number | null; benchmark_note: string | null }; price_source: string; real_prices: boolean; warning?: string }
 export interface CorpAction { id?: string; ticker: string; kind: "dividend" | "split" | "bonus"; ex_date: string; amount?: number | null; ratio_new?: number | null; ratio_old?: number | null; source?: string; source_text?: string }
 
-export const getPerformance = (token: string) => request<Performance>("/users/portfolio/performance", token);
+export const getPerformance = (token: string, account?: string | null) =>
+  request<Performance & { accounts: string[]; account: string | null }>(`/users/portfolio/performance${account ? `?account=${encodeURIComponent(account)}` : ""}`, token);
 export const getCorpActions = (token: string) => request<{ actions: CorpAction[] }>("/users/corporate-actions", token);
 export const addCorpAction = (token: string, a: CorpAction) => request<CorpAction>("/users/corporate-actions", token, { method: "POST", body: JSON.stringify(a) });
 export const deleteCorpAction = (token: string, id: string) => request(`/users/corporate-actions/${id}`, token, { method: "DELETE" });
@@ -370,19 +371,26 @@ export const lookupCorpActions = (token: string, ticker: string) =>
   request<{ actions: CorpAction[]; note: string }>(`/users/corporate-actions/lookup/${encodeURIComponent(ticker)}`, token);
 
 // ── Mutual funds ─────────────────────────────────────────────────────────
-export interface FundRow { id: string; scheme_name: string; scheme_code: string | null; folio: string; units: number; nav: number | null; nav_date: string | null; nav_source: string; invested: number | null; value: number | null; gain: number | null; xirr: number | null; source: string }
+export interface FundRow { id: string; account: string; scheme_name: string; scheme_code: string | null; folio: string; units: number; nav: number | null; nav_date: string | null; nav_source: string; invested: number | null; value: number | null; gain: number | null; xirr: number | null; source: string }
 export interface FundsView { funds: FundRow[]; total: { invested: number; value: number; gain: number; xirr_of_funds_with_history: number | null }; nav_note: string | null; as_of: string }
 export const getFunds = (token: string) => request<FundsView>("/funds", token);
 export const searchSchemes = (token: string, q: string) => request<{ schemes: { scheme_code: string; name: string; nav: number; nav_date: string }[] }>(`/funds/schemes?q=${encodeURIComponent(q)}`, token);
-export const addFund = (token: string, f: { scheme_code: string; units: number; invested: number; date: string }) =>
+export const addFund = (token: string, f: { scheme_code: string; units: number; invested: number; date: string; account?: string }) =>
   request<{ id: string; scheme_name: string }>("/funds", token, { method: "POST", body: JSON.stringify(f) });
 export const deleteFund = (token: string, id: string) => request(`/funds/${id}`, token, { method: "DELETE" });
-export async function importCas(token: string, file: File, password: string) {
+export async function importCas(token: string, file: File, password: string, account = "Me") {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("password", password);
+  fd.append("account", account);
   const res = await fetch(`${API_BASE}/funds/import-cas`, { method: "POST", body: fd, headers: { Authorization: `Bearer ${token}` } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, formatDetail(body?.detail, `Import failed (${res.status})`));
   return body as { imported: number; notes: string[]; message: string };
 }
+
+// ── Research ─────────────────────────────────────────────────────────────
+export interface Fundamentals { symbol: string; name: string | null; sector: string | null; industry: string | null; price: number | null; pe: number | null; forward_pe: number | null; pb: number | null; roe: number | null; roa: number | null; debt_equity: number | null; profit_margin: number | null; operating_margin: number | null; sales_growth: number | null; earnings_growth: number | null; market_cap_cr: number | null; dividend_yield: number | null; insider_holding: number | null; beta: number | null; source: string }
+export interface NewsView { ticker: string; news: { title: string; url: string; source: string | null; published: string | null }[]; announcements: { title: string; detail: string; url: string | null; published: string | null }[]; errors: string[] }
+export const getFundamentals = (token: string | null, t: string) => request<Fundamentals>(`/market/fundamentals/${encodeURIComponent(t)}`, token);
+export const getNews = (token: string | null, t: string) => request<NewsView>(`/market/news/${encodeURIComponent(t)}`, token);

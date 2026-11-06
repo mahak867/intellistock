@@ -86,6 +86,11 @@ def browser(kind: str) -> None:
         pg.goto(WEB + "/portfolio")
         pg.wait_for_selector("text=Dividends, bonuses and splits", timeout=60000)
         check(f"{kind}: portfolio shows corporate actions", True)
+        pg.goto(WEB + "/research?ticker=TCS")
+        pg.wait_for_selector("text=Exchange announcements", timeout=60000)
+        pg.wait_for_load_state("networkidle", timeout=90000)
+        w = pg.evaluate("[document.documentElement.scrollWidth, innerWidth]")
+        check(f"{kind}: /research renders without sideways scroll", w[0] <= w[1], w)
         pg.goto(WEB + "/tools?tool=taxlots")
         pg.click("text=Calculate")
         pg.wait_for_selector("text=long-term gain you can still book", timeout=60000)
@@ -143,6 +148,15 @@ def main() -> int:
             check("mutual fund added and valued at AMFI NAV", s == 201 and fv["funds"][0]["nav_source"] == "amfi" and fv["funds"][0]["value"] > 0, (s, s2))
             if s == 201:
                 call("DELETE", f"/funds/{add['id']}", token=t)
+    s, fu = call("GET", "/market/fundamentals/TCS", token=t)
+    if s == 502:
+        print("SKIP fundamentals: Yahoo not reachable from this machine")
+    else:
+        check("Yahoo fundamentals for TCS", s == 200 and fu.get("pe"), (s, fu))
+    s, nw = call("GET", "/market/news/TCS", token=t)
+    check("news endpoint answers", s == 200, s)
+    s, wl2 = call("POST", "/stocks/watchlist", {"ticker": "SBIN", "list_name": "Banks"}, token=t)
+    check("named watchlist", s == 201, s)
     s, bs = call("GET", "/broker/status", token=t)
     check("broker status answers (not connected)", s == 200 and bs["connected"] is False, (s, bs))
     if a.browser:

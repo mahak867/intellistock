@@ -41,6 +41,7 @@ export default function PortfolioPage() {
     quantity: "",
     avg_buy_price: "",
     buy_date: new Date().toISOString().slice(0, 10),
+    account: "Me",
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -107,8 +108,9 @@ export default function PortfolioPage() {
         quantity: Number(form.quantity),
         avg_buy_price: Number(form.avg_buy_price),
         buy_date: new Date(form.buy_date).toISOString(),
+        account: form.account.trim() || "Me",
       });
-      setForm({ ticker: "", quantity: "", avg_buy_price: "", buy_date: new Date().toISOString().slice(0, 10) });
+      setForm({ ticker: "", quantity: "", avg_buy_price: "", buy_date: new Date().toISOString().slice(0, 10), account: form.account });
       setShowForm(false);
       load();
     } catch (err) {
@@ -153,7 +155,7 @@ export default function PortfolioPage() {
       {showForm && (
         <Card className="mb-6">
           <CardContent className="pt-5">
-            <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+            <form onSubmit={handleAdd} className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
               <div>
                 <Label className="mb-1.5 block">Ticker</Label>
                 <Input
@@ -193,6 +195,10 @@ export default function PortfolioPage() {
                   value={form.buy_date}
                   onChange={(e) => setForm({ ...form, buy_date: e.target.value })}
                 />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Whose (family member)</Label>
+                <Input maxLength={40} value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
               </div>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Adding…" : "Add"}

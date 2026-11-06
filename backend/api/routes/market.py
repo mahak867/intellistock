@@ -10,6 +10,7 @@ from functools import lru_cache
 
 import numpy as np
 import pandas as pd
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
@@ -210,3 +211,48 @@ async def market_portfolio_risk(b: PortfolioIn):
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+
+# ── Fundamentals and news (third-party sources, labelled) ──────────────────────
+@router.get("/fundamentals/{ticker}", summary="Company fundamentals (Yahoo Finance), cached a day")
+async def fundamentals(ticker: str) -> dict:
+    import asyncio
+
+    from backend.data import fundamentals_feed as FF
+
+    t = ticker.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9&._-]{1,20}", t):
+        raise HTTPException(status_code=422, detail="Not a valid symbol.")
+    try:
+        return await asyncio.to_thread(FF.fetch_one, t)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Yahoo Finance did not answer ({type(e).__name__}).") from None
+
+
+@router.get("/news/{ticker}", summary="Recent headlines (Google News) and NSE announcements")
+async def stock_news(ticker: str) -> dict:
+    import asyncio
+
+    from backend.data import news as N
+
+    t = ticker.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9&._-]{1,20}", t):
+        raise HTTPException(status_code=422, detail="Not a valid symbol.")
+    company = None
+    try:
+        from backend.data import fundamentals_feed as FF
+        company = (await asyncio.to_thread(FF.fetch_one, t)).get("name")
+    except Exception:
+        pass
+    out = {"ticker": t, "news": [], "announcements": [], "errors": []}
+    try:
+        out["news"] = await asyncio.to_thread(N.news, t, company)
+    except Exception as e:
+        out["errors"].append(f"News unavailable ({type(e).__name__}).")
+    try:
+        out["announcements"] = await asyncio.to_thread(N.announcements, t)
+    except Exception as e:
+        out["errors"].append(f"NSE announcements unavailable ({type(e).__name__}); NSE often blocks cloud servers.")
+    return out

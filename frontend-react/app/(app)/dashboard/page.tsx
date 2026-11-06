@@ -7,6 +7,8 @@ import { ALL_TICKERS, SECTORS, demoQuote } from "@/lib/demo";
 import { PriceChart, type Hover } from "@/components/terminal/price-chart";
 import { Sparkline } from "@/components/terminal/sparkline";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { addToWatchlist, getWatchlist, removeFromWatchlist } from "@/lib/api";
 
 const inr = (n: number, d = 2) => n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
 const HORIZONS = [5, 10, 15, 30];
@@ -160,11 +162,50 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: "up" | "down" }) {
 
 const WATCH = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "MARUTI"];
 function Watchlist({ onPick, active, label }: { onPick: (t: string) => void; active: string; label: string }) {
-  const api = useQuotes(WATCH);
-  const rows = React.useMemo(() => api ?? WATCH.map(demoQuote), [api]);
+  const { token } = useAuth();
+  const [items, setItems] = React.useState<{ id: string; ticker: string; list_name: string }[] | null>(null);
+  const [list, setList] = React.useState("Main");
+  const [tick, setTick] = React.useState(0);
+  const [newT, setNewT] = React.useState("");
+  const [newList, setNewList] = React.useState("");
+  const [msg, setMsg] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!token || token === "demo") return;
+    let live = true;
+    getWatchlist(token).then((r) => live && setItems(r.watchlist)).catch(() => live && setItems([]));
+    return () => { live = false; };
+  }, [token, tick]);
+  const lists = React.useMemo(() => Array.from(new Set(["Main", ...(items ?? []).map((i) => i.list_name)])), [items]);
+  const mine = (items ?? []).filter((i) => i.list_name === list);
+  const tickers = React.useMemo(() => (items && items.length ? mine.map((i) => i.ticker) : WATCH), [items, list]); // eslint-disable-line react-hooks/exhaustive-deps
+  const api = useQuotes(tickers);
+  const rows = React.useMemo(() => api ?? tickers.map(demoQuote), [api, tickers]);
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !newT.trim()) return;
+    const target = newList.trim() || list;
+    try { await addToWatchlist(token, newT.trim().toUpperCase(), target); setNewT(""); setNewList(""); setList(target); setMsg(null); setTick((t) => t + 1); }
+    catch (err) { setMsg(err instanceof Error ? err.message : "Not added"); }
+  };
+  const remove = async (ticker: string) => {
+    const it = mine.find((i) => i.ticker === ticker);
+    if (!token || !it) return;
+    await removeFromWatchlist(token, it.id); setTick((t) => t + 1);
+  };
   return (
     <div>
-      <h2 className="font-display text-lg font-semibold mb-3">Watchlist</h2>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h2 className="font-display text-lg font-semibold">Watchlist</h2>
+        {items && items.length > 0 && (
+          <div role="tablist" aria-label="Watchlists" className="flex flex-wrap gap-1">
+            {lists.map((l) => (
+              <button key={l} role="tab" aria-selected={l === list} onClick={() => setList(l)}
+                className={cn("rounded-md px-2.5 py-1 text-xs", l === list ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-accent")}>{l}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      {items && items.length === 0 && <p className="mb-2 text-xs text-muted-foreground">Showing a sample list. Add stocks below to make your own.</p>}
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead>
@@ -192,6 +233,19 @@ function Watchlist({ onPick, active, label }: { onPick: (t: string) => void; act
           </tbody>
         </table>
       </div>
+      {token && token !== "demo" && (
+        <form onSubmit={add} className="mt-3 flex flex-wrap gap-2">
+          <input aria-label="Add a stock" placeholder="Add symbol" maxLength={20} value={newT} onChange={(e) => setNewT(e.target.value)} className="h-9 w-28 rounded-lg border border-border bg-card px-2 text-sm" />
+          <input aria-label="To list" placeholder={`List (${list})`} maxLength={40} value={newList} onChange={(e) => setNewList(e.target.value)} className="h-9 w-32 rounded-lg border border-border bg-card px-2 text-sm" />
+          <button type="submit" className="h-9 rounded-lg bg-primary px-3 text-sm text-primary-foreground">Add</button>
+          {mine.length > 0 && (
+            <select aria-label="Remove a stock" value="" onChange={(e) => e.target.value && remove(e.target.value)} className="h-9 rounded-lg border border-border bg-card px-2 text-sm">
+              <option value="">Remove…</option>{mine.map((i) => <option key={i.id} value={i.ticker}>{i.ticker}</option>)}
+            </select>
+          )}
+        </form>
+      )}
+      {msg && <p role="alert" className="mt-1 text-xs text-destructive">{msg}</p>}
       <p className="mt-2 text-xs text-muted-foreground">Prices: {label || "loading"}.</p>
     </div>
   );

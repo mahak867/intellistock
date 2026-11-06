@@ -122,3 +122,20 @@ def test_placeholder_prices_are_flagged(api, monkeypatch):
     monkeypatch.setattr(providers, "get_prices", synth)
     j = api.get("/api/v1/users/portfolio/performance").json()
     assert j["real_prices"] is False and "PLACEHOLDERS" in j["warning"]
+
+
+def test_family_accounts_filter_performance(api):
+    r = api.post("/api/v1/users/portfolio", json={"ticker": "TCS", "quantity": 5, "avg_buy_price": 100, "buy_date": "2023-06-01T00:00:00", "account": "Mom"})
+    assert r.status_code == 201, r.text
+    assert api.post("/api/v1/users/portfolio", json={"ticker": "TCS", "quantity": 1, "avg_buy_price": 1, "buy_date": "2023-06-01T00:00:00", "account": "x;drop"}).status_code == 422
+    j = api.get("/api/v1/users/portfolio/performance?account=Mom").json()
+    assert [h["account"] for h in j["holdings"]] == ["Mom"] and j["total"]["invested"] == 500 and j["accounts"] == ["Me", "Mom"]
+    assert len(api.get("/api/v1/users/portfolio/performance").json()["holdings"]) == 3
+
+
+def test_named_watchlists(api):
+    for body in ({"ticker": "TCS"}, {"ticker": "TCS", "list_name": "Banks"}, {"ticker": "HDFCBANK", "list_name": "Banks"}):
+        assert api.post("/api/v1/stocks/watchlist", json=body).status_code == 201
+    assert api.post("/api/v1/stocks/watchlist", json={"ticker": "TCS", "list_name": "Banks"}).status_code == 409
+    items = api.get("/api/v1/stocks/watchlist").json()["watchlist"]
+    assert sorted((i["list_name"], i["ticker"]) for i in items) == [("Banks", "HDFCBANK"), ("Banks", "TCS"), ("Main", "TCS")]

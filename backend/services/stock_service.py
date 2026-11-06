@@ -102,11 +102,11 @@ class StockService:
 
     @staticmethod
     async def add_watchlist(
-        user_id: str, ticker: str, exchange: str = "NSE", notes: str | None = None
+        user_id: str, ticker: str, exchange: str = "NSE", notes: str | None = None, list_name: str = "Main"
     ) -> WatchlistItem:
         async with get_session() as session:
             item = WatchlistItem(
-                user_id=user_id, ticker=ticker, exchange=exchange, notes=notes
+                user_id=user_id, ticker=ticker, exchange=exchange, notes=notes, list_name=list_name
             )
             session.add(item)
             await session.flush()
@@ -126,6 +126,7 @@ class StockService:
                     "ticker": r.ticker,
                     "exchange": r.exchange,
                     "notes": r.notes,
+                    "list_name": r.list_name or "Main",
                     "added_at": r.created_at.isoformat(),
                 }
                 for r in rows

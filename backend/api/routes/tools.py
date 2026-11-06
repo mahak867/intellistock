@@ -355,6 +355,45 @@ def screener_fundamentals(b: FundScreenIn):
         _bad(e)
 
 
+class LiveScreenIn(BaseModel):
+    universe: Literal["nifty50", "custom"] = "nifty50"
+    tickers: list[str] = Field(default_factory=list, max_length=200)
+    filters: list[FundFilter] = Field(default_factory=list, max_length=FS.MAX_FILTERS)
+    sort: str = "quality"
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+@router.post("/screener/fundamentals/live", summary="Fundamentals screener on Yahoo Finance data (NIFTY 50 or your list)")
+def screener_fundamentals_live(b: LiveScreenIn):
+    import re as _re
+
+    import pandas as pd
+
+    from backend.data import fundamentals_feed as FF
+    from ml.data.pipeline import NIFTY50_TICKERS
+
+    syms = NIFTY50_TICKERS if b.universe == "nifty50" else [t.strip().upper() for t in b.tickers]
+    syms = [s for s in dict.fromkeys(syms) if _re.fullmatch(r"[A-Z0-9&._-]{1,20}", s)]
+    if not syms:
+        _bad(ValueError("Give at least one valid symbol."))
+    rows, missing = FF.fetch_many(syms)
+    if not rows:
+        raise HTTPException(status_code=502, detail="Yahoo Finance returned no fundamentals (unreachable or rate-limited). Try again later.")
+    df = pd.DataFrame(rows)
+    fields = [f for f in FS.FIELDS if f in df.columns and df[f].notna().any()]
+    info = {"rows": len(df), "recognised": {f: "Yahoo Finance" for f in fields}}
+    try:
+        out = FS.screen_frame(df[["symbol", *fields]].copy(), info, [f.model_dump() for f in b.filters], b.sort, b.limit)
+    except ValueError as e:
+        _bad(e)
+    names = {r["symbol"]: (r.get("name"), r.get("sector")) for r in rows}
+    for r in out["rows"]:
+        r["name"], r["sector"] = names.get(r["symbol"], (None, None))
+    out.update(source="Yahoo Finance (its own compilation; check the annual report for anything important)", missing=missing)
+    out["note"] = "Yahoo has no promoter holding or pledge data for Indian stocks, so filters on those match nothing here."
+    return out
+
+
 class AnnIn(BaseModel):
     symbol: str
     title: str
