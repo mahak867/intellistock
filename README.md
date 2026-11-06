@@ -8,6 +8,29 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
+## Screenshots
+
+Taken automatically on GitHub's runners by the `Demo on Windows, macOS and Linux` workflow (`scripts/feature_screens.py`). The Research page uses live Yahoo Finance, Google News and NSE data; the other pages run on the demo's **placeholder prices** (labelled as such in the app), so their values are illustrations.
+
+| Research (live data) | Net worth |
+|---|---|
+| ![Research page with live fundamentals, NSE announcements and headlines](docs/screenshots/research.png) | ![Net worth with Account Aggregator linking, statement imports and deposits](docs/screenshots/net-worth.png) |
+| **Portfolio: return vs NIFTY 50, dividends, bonuses, splits** | **Tax lots and LTCG harvesting** |
+| ![Portfolio](docs/screenshots/portfolio.png) | ![Tax lots](docs/screenshots/tax-lots.png) |
+| **Mutual funds (CAS import, AMFI NAV)** | **Zerodha broker link** |
+| ![Funds](docs/screenshots/funds.png) | ![Broker](docs/screenshots/broker.png) |
+| **Terminal** | **Alerts** |
+| ![Terminal](docs/screenshots/terminal.png) | ![Alerts](docs/screenshots/alerts.png) |
+
+On a phone:
+
+<p>
+<img src="docs/screenshots/phone-terminal.png" width="240" alt="Terminal on a phone">
+<img src="docs/screenshots/phone-net-worth.png" width="240" alt="Net worth on a phone">
+<img src="docs/screenshots/phone-portfolio.png" width="240" alt="Portfolio on a phone">
+</p>
+
+
 ---
 
 ## 🎯 Overview
