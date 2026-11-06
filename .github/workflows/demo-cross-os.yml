@@ -45,6 +45,16 @@ jobs:
       - name: Smoke test
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then python scripts/demo_smoke.py --browser webkit; else python scripts/demo_smoke.py; fi
+      - name: Screenshots with live data (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pip install playwright==1.48.0 && python -m playwright install --with-deps chromium
+          mkdir -p shots && python scripts/feature_screens.py shots
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: screenshots
+          path: shots/
       - name: Demo log
         if: always()
         run: tail -n 80 demo.log || true
