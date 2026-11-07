@@ -4,7 +4,8 @@ Kronos (https://github.com/shiyu-coder/Kronos, MIT) is vendored in ml/kronos/ven
 return every path instead of their average, because IntelliStock shows a range, never a single line.
 
 Optional: needs `pip install -r requirements-kronos.txt` (PyTorch) and the weights from Hugging Face on first use.
-Nothing in the app depends on it until it passes scripts/evaluate_kronos.py on NSE prices.
+Nothing in the app uses it: Kronos-small failed scripts/evaluate_kronos.py on NIFTY 50 (November 2026; see README,
+Measured accuracy). Kept so a fine-tuned or newer checkpoint can be re-tested with one workflow run.
 """
 from __future__ import annotations
 

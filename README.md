@@ -252,6 +252,20 @@ The first run installs and builds the web app (a few minutes). Then open http://
 
 The 80% price range held 84.6% of the time on newer data at 10 days (72% to 92% by stock; quantiles fitted on the older half, scored on the newer half). Reading: **the direction forecast has no demonstrated edge, so the app does not show Buy or Sell; the volatility range is the part that works.** Many stocks were tested, so a couple of "wins" would be expected by luck alone. Only 10-day coverage was re-measured with the holdout method. Prices are used as the dataset provides them; a few jumps over 25% in a day (mostly March 2020) are real moves, but unadjusted splits cannot be ruled out.
 
+### Kronos (open-source candlestick foundation model): tested, not shipped
+
+[Kronos](https://github.com/shiyu-coder/Kronos) is a published model pre-trained on candles from 45+ exchanges. The *Kronos on NSE* workflow (`scripts/evaluate_kronos.py`) tested Kronos-small zero-shot on NIFTY 50 stocks: a forecast every 20 trading days from November 2024 to September 2026, 30 paths each, scored against a range built from each stock's own past returns (no model at all). The wrapper reproduces Kronos's own predictor exactly, so these are Kronos's numbers.
+
+| 10 days ahead | 256-day context, 50 stocks | 512-day context, 10 stocks | 512-day, top-p 1.0, 10 stocks |
+|---|---|---|---|
+| Real price inside its 10-90% range (target 80%) | 30.9% (baseline 71.0%) | 50.8% (70.8%) | 56.3% (70.8%) |
+| Range score (pinball) better than the baseline | 1 of 50 | 0 of 10 | 1 of 10 |
+| Middle forecast beats "no change" | 1 of 50 | 0 of 10 | 1 of 10 |
+| Direction hit rate (always-up baseline) | 52.4% (55.0%) | 51.2% (52.9%) | 51.2% (52.9%) |
+| Stocks passing the edge test | 0 of 50 | 0 of 10 | 0 of 10 |
+
+Why it fails here: its middle forecast drifts back toward the average price of the window it was given (correlation +0.79 with 256 days of context, +0.5 with 512), so ranges are centred in the wrong place; widening them did not fix that. **Kronos does not pass the bar (75-85% coverage, better range score on most stocks), so the app does not show it.** The code stays in `ml/kronos` (optional, `requirements-kronos.txt`) so a fine-tuned or newer model can be re-tested with one workflow run.
+
 ## Alerts
 
 Create alerts on the **Alerts** page. A Celery beat task checks them every `ALERT_CHECK_MINUTES` (default 30) against the latest end-of-day close; prices are never live. To send them to Telegram, create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN`, and each user saves their own chat id on the Alerts page. Delivery code is tested against a mock only. While prices are placeholders or unlicensed, alerts are labelled and shown in the app only.
