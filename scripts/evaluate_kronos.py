@@ -53,7 +53,8 @@ def load(ticker: str) -> pd.DataFrame:
     return d
 
 
-def evaluate(ticker: str, df: pd.DataFrame, kp, context: int, span: int, step: int, samples: int, batch: int) -> dict:
+def evaluate(ticker: str, df: pd.DataFrame, kp, context: int, span: int, step: int, samples: int, batch: int,
+             T: float = 1.0, top_p: float = 0.9) -> dict:
     H = max(HS)
     lc = np.log(df["close"].to_numpy())
     origins = list(range(len(df) - H - span, len(df) - H, step))
@@ -63,10 +64,18 @@ def evaluate(ticker: str, df: pd.DataFrame, kp, context: int, span: int, step: i
     paths = []
     for i in range(0, len(origins), batch):
         chunk = origins[i:i + batch]
-        paths.append(kp.paths([df.iloc[o - context:o] for o in chunk], H, samples, seed=i))
+        paths.append(kp.paths([df.iloc[o - context:o] for o in chunk], H, samples, T=T, top_p=top_p, seed=i))
     P = np.log(np.concatenate(paths))                             # (n, samples, H), log prices
     out = {"ticker": ticker, "origins": len(origins), "from": str(df.index[origins[0]].date()),
-           "to": str(df.index[origins[-1]].date()), "samples": samples, "context": context}
+           "to": str(df.index[origins[-1]].date()), "samples": samples, "context": context, "T": T, "top_p": top_p}
+    # Diagnostics: does the middle path jump on day 1, and does it lean toward the context window's average price?
+    base0 = np.array([lc[o - 1] for o in origins])
+    med1 = np.median(P[:, :, 0], axis=1) - base0
+    gap = np.array([np.log(df["close"].iloc[o - context:o].mean()) for o in origins]) - base0
+    med10 = np.median(P[:, :, H - 1], axis=1) - base0
+    out["diag"] = {"day1_jump": float(np.mean(np.abs(med1))), "real_day1_move": float(np.mean(np.abs(
+        np.array([lc[o] for o in origins]) - base0))), "pull_to_mean_corr": float(np.corrcoef(gap, med10)[0, 1]),
+        "median_10d_move": float(np.mean(np.abs(med10)))}
     for h in HS:
         base = np.array([lc[o - 1] for o in origins])             # last close the model saw
         y = np.array([lc[o - 1 + h] for o in origins]) - base     # real h-day log return
@@ -104,7 +113,7 @@ def run(a) -> int:
             continue
         t0 = time.time()
         try:
-            r = evaluate(t, load(t), kp, a.context, a.span, a.step, a.samples, a.batch)
+            r = evaluate(t, load(t), kp, a.context, a.span, a.step, a.samples, a.batch, a.temperature, a.top_p)
         except Exception as e:  # one bad stock must not sink the shard
             print(f"{t}: FAILED {type(e).__name__}: {e}", flush=True)
             bad += 1
@@ -123,7 +132,8 @@ def summary(a) -> int:
         return 1
     n = len(rs)
     lines = [f"## Kronos-small on NSE: {n} stocks, {sum(r['origins'] for r in rs)} forecasts",
-             f"{rs[0]['from']} to {rs[0]['to']}, {rs[0]['samples']} paths each, {rs[0]['context']} days of context. "
+             f"{rs[0]['from']} to {rs[0]['to']}, {rs[0]['samples']} paths each, {rs[0]['context']} days of context, "
+             f"temperature {rs[0].get('T', 1.0)}, top-p {rs[0].get('top_p', 0.9)}. "
              "Origins 20 trading days apart, so every scored day is used once.", "",
              "| Test | 5 days | 10 days |", "|---|---|---|"]
     def row(name, f):
@@ -136,6 +146,11 @@ def summary(a) -> int:
     row("Middle forecast beats no change (error)", lambda h: f"{int((col(h,'mae') < col(h,'no_change_mae')).sum())} of {n} stocks")
     row("Direction hit rate (always-up baseline)", lambda h: f"{col(h,'direction').mean():.1%} ({col(h,'up_rate').mean():.1%})")
     row("Stocks passing the edge test (luck gives about 1)", lambda h: f"{int(col(h,'edge').sum())} of {n}")
+    if all("diag" in r for r in rs):
+        dg = lambda k: np.mean([r["diag"][k] for r in rs])  # noqa: E731
+        lines += ["", f"Diagnostics: middle path moves {dg('day1_jump'):.2%} on day 1 (real prices moved {dg('real_day1_move'):.2%}); "
+                  f"10-day middle move {dg('median_10d_move'):.2%}; correlation of that move with the gap to the window's "
+                  f"average price {dg('pull_to_mean_corr'):+.2f} (near +1 means it reverts to the average)."]
     cov = col(10, "coverage").mean()
     wins = int((col(10, "pinball") < col(10, "baseline_pinball")).sum())
     ok = 0.75 <= cov <= 0.85 and wins > n / 2
@@ -159,6 +174,8 @@ def main() -> int:
     r.add_argument("--step", type=int, default=20)
     r.add_argument("--samples", type=int, default=30)
     r.add_argument("--batch", type=int, default=4)
+    r.add_argument("--temperature", type=float, default=1.0)
+    r.add_argument("--top-p", type=float, default=0.9)
     s = sub.add_parser("summary")
     s.add_argument("dir")
     s.add_argument("--md")

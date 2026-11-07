@@ -10,6 +10,15 @@ on:
       samples:
         description: "Paths per forecast"
         default: "30"
+      tickers:
+        description: "Stocks to test (space separated); blank = all of NIFTY 50"
+        default: ""
+      args:
+        description: "Extra arguments, e.g. --context 512 --top-p 1.0"
+        default: ""
+      label:
+        description: "Results branch suffix (kronos-results-<label>)"
+        default: ""
   push:
     branches: [main]
     paths: ["ml/kronos/**", "scripts/evaluate_kronos.py", ".github/workflows/kronos-eval.yml"]
@@ -43,11 +52,14 @@ jobs:
           src = pathlib.Path("ml/data/pipeline.py").read_text()
           start = src.index("NIFTY50_TICKERS = [")
           names = ast.literal_eval(src[start + len("NIFTY50_TICKERS = "): src.index("]", start) + 1])
+          override = "${{ inputs.tickers }}".split()
+          names = override or names
           print(" ".join(names[${{ matrix.shard }}::10]))
           EOF
           )
           echo "Stocks: $TICKERS"
-          python scripts/evaluate_kronos.py run $TICKERS --out results --samples ${{ inputs.samples || '30' }}
+          if [ -z "$TICKERS" ]; then echo "Nothing for this shard."; exit 0; fi
+          python scripts/evaluate_kronos.py run $TICKERS --out results --samples ${{ inputs.samples || '30' }} ${{ inputs.args }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -77,6 +89,7 @@ jobs:
       - name: Publish to the kronos-results branch
         run: |
           cd results
-          git init -q -b kronos-results && git add .
+          git init -q -b results && git add .
           git -c user.name=mahak867 -c user.email=mahakfahad07@gmail.com commit -qm "Kronos NSE evaluation"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" kronos-results
+          B=kronos-results${{ inputs.label && format('-{0}', inputs.label) || '' }}
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" "HEAD:$B"

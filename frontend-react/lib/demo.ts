@@ -7,7 +7,7 @@ export const SECTORS: Record<string, string[]> = {
   IT: ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
   Banks: ["HDFCBANK", "ICICIBANK", "SBIN", "KOTAKBANK", "AXISBANK"],
   Energy: ["RELIANCE", "ONGC", "NTPC", "POWERGRID", "COALINDIA"],
-  Auto: ["MARUTI", "TATAMOTORS", "M&M", "BAJAJ-AUTO"],
+  Auto: ["MARUTI", "TMPV", "M&M", "BAJAJ-AUTO"],
   FMCG: ["HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA"],
   Metals: ["TATASTEEL", "JSWSTEEL", "HINDALCO"],
 };

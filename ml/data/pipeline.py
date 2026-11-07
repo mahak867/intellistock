@@ -261,7 +261,7 @@ NIFTY50_TICKERS = [
     "NTPC",
     "TECHM",
     "HCLTECH",
-    "TATAMOTORS",
+    "TMPV",
     "TATASTEEL",
     "JSWSTEEL",
     "GRASIM",
