@@ -1,0 +1,44 @@
+{
+ "ticker": "ULTRACEMCO",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "T": 1.0,
+ "top_p": 0.9,
+ "diag": {
+  "day1_jump": 0.008598623315969611,
+  "real_day1_move": 0.008483760899851292,
+  "pull_to_mean_corr": 0.7482122125054246,
+  "median_10d_move": 0.0278999840760951
+ },
+ "h5": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.75,
+  "pinball": 0.010440383994047077,
+  "baseline_pinball": 0.008829752748471335,
+  "mae": 0.028841205174977864,
+  "no_change_mae": 0.026735920476103365,
+  "direction": 0.5,
+  "up_rate": 0.5833333333333334,
+  "edge_t": 0.3760252092515106,
+  "edge": false,
+  "width": 0.046503949165344206,
+  "baseline_width": 0.07843763512322195
+ },
+ "h10": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.7916666666666666,
+  "pinball": 0.01770451725363642,
+  "baseline_pinball": 0.014452114799981111,
+  "mae": 0.045914172494058526,
+  "no_change_mae": 0.04264267273631065,
+  "direction": 0.5833333333333334,
+  "up_rate": 0.5833333333333334,
+  "edge_t": 0.41931768758576604,
+  "edge": false,
+  "width": 0.0567109902699788,
+  "baseline_width": 0.10840317174545393
+ }
+}

@@ -1,0 +1,44 @@
+{
+ "ticker": "WIPRO",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "T": 1.0,
+ "top_p": 0.9,
+ "diag": {
+  "day1_jump": 0.01541394390699391,
+  "real_day1_move": 0.009616112083368914,
+  "pull_to_mean_corr": 0.7821499167665762,
+  "median_10d_move": 0.05786477052433525
+ },
+ "h5": {
+  "coverage": 0.125,
+  "baseline_coverage": 0.8333333333333334,
+  "pinball": 0.023145033898009062,
+  "baseline_pinball": 0.010597868928381148,
+  "mae": 0.05795829928795948,
+  "no_change_mae": 0.03191815977251685,
+  "direction": 0.4166666666666667,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 3.456176790808173,
+  "edge": false,
+  "width": 0.04984708229700726,
+  "baseline_width": 0.08541445507321
+ },
+ "h10": {
+  "coverage": 0.125,
+  "baseline_coverage": 0.875,
+  "pinball": 0.02914520608495752,
+  "baseline_pinball": 0.012772765117865752,
+  "mae": 0.0714250124822099,
+  "no_change_mae": 0.0390856780599936,
+  "direction": 0.5,
+  "up_rate": 0.4583333333333333,
+  "edge_t": 3.3726129396327034,
+  "edge": false,
+  "width": 0.05679467519124348,
+  "baseline_width": 0.12808142850953
+ }
+}

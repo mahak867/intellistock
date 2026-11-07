@@ -1,0 +1,44 @@
+{
+ "ticker": "ICICIBANK",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "T": 1.0,
+ "top_p": 0.9,
+ "diag": {
+  "day1_jump": 0.010877592995347185,
+  "real_day1_move": 0.007190275583254135,
+  "pull_to_mean_corr": 0.9170263625142385,
+  "median_10d_move": 0.03605603282213602
+ },
+ "h5": {
+  "coverage": 0.5,
+  "baseline_coverage": 0.75,
+  "pinball": 0.013330090083842979,
+  "baseline_pinball": 0.008679857038053638,
+  "mae": 0.03404628868226119,
+  "no_change_mae": 0.022668862554582263,
+  "direction": 0.5,
+  "up_rate": 0.75,
+  "edge_t": 1.8275949845222268,
+  "edge": false,
+  "width": 0.04359287420908605,
+  "baseline_width": 0.06324797785290832
+ },
+ "h10": {
+  "coverage": 0.4166666666666667,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.018862533040171683,
+  "baseline_pinball": 0.012974924163480887,
+  "mae": 0.04640063996249629,
+  "no_change_mae": 0.035854976899281375,
+  "direction": 0.5,
+  "up_rate": 0.6666666666666666,
+  "edge_t": 1.1545985882650598,
+  "edge": false,
+  "width": 0.05398303071657814,
+  "baseline_width": 0.09139792306588103
+ }
+}

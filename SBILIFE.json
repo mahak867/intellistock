@@ -1,0 +1,44 @@
+{
+ "ticker": "SBILIFE",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "T": 1.0,
+ "top_p": 0.9,
+ "diag": {
+  "day1_jump": 0.012007084104471414,
+  "real_day1_move": 0.007840016949746564,
+  "pull_to_mean_corr": 0.6650833171784332,
+  "median_10d_move": 0.04591356732607784
+ },
+ "h5": {
+  "coverage": 0.3333333333333333,
+  "baseline_coverage": 0.75,
+  "pinball": 0.014270417922161943,
+  "baseline_pinball": 0.008401300596892296,
+  "mae": 0.040057445247175395,
+  "no_change_mae": 0.02452730041313711,
+  "direction": 0.375,
+  "up_rate": 0.6666666666666666,
+  "edge_t": 1.8297479574538535,
+  "edge": false,
+  "width": 0.051647279659907085,
+  "baseline_width": 0.07243524397776058
+ },
+ "h10": {
+  "coverage": 0.25,
+  "baseline_coverage": 0.75,
+  "pinball": 0.026282288121379404,
+  "baseline_pinball": 0.013922766736434519,
+  "mae": 0.06431358763691897,
+  "no_change_mae": 0.04059643963740256,
+  "direction": 0.375,
+  "up_rate": 0.625,
+  "edge_t": 2.047111346351499,
+  "edge": false,
+  "width": 0.06112870971361787,
+  "baseline_width": 0.10800971516553658
+ }
+}
