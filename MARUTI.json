@@ -1,0 +1,44 @@
+{
+ "ticker": "MARUTI",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 512,
+ "T": 1.0,
+ "top_p": 1.0,
+ "diag": {
+  "day1_jump": 0.009197253021847299,
+  "real_day1_move": 0.01126008015774671,
+  "pull_to_mean_corr": 0.7312720317434382,
+  "median_10d_move": 0.0557843642239082
+ },
+ "h5": {
+  "coverage": 0.5416666666666666,
+  "baseline_coverage": 0.7916666666666666,
+  "pinball": 0.016909855492256445,
+  "baseline_pinball": 0.008576876984111166,
+  "mae": 0.04610868774233364,
+  "no_change_mae": 0.026699413498293634,
+  "direction": 0.625,
+  "up_rate": 0.625,
+  "edge_t": 2.1715572375169505,
+  "edge": false,
+  "width": 0.09880046447118122,
+  "baseline_width": 0.07523382172642411
+ },
+ "h10": {
+  "coverage": 0.5,
+  "baseline_coverage": 0.625,
+  "pinball": 0.0311434864788194,
+  "baseline_pinball": 0.015529851642474108,
+  "mae": 0.0817769088761869,
+  "no_change_mae": 0.047791999443036914,
+  "direction": 0.5,
+  "up_rate": 0.625,
+  "edge_t": 2.258780673761331,
+  "edge": false,
+  "width": 0.14123730659484846,
+  "baseline_width": 0.11113158351825163
+ }
+}
