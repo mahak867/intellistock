@@ -1,0 +1,36 @@
+{
+ "ticker": "RELIANCE",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.5416666666666666,
+  "baseline_coverage": 0.75,
+  "pinball": 0.010568876526335688,
+  "baseline_pinball": 0.008122427634402423,
+  "mae": 0.02785190745848491,
+  "no_change_mae": 0.023319387000817038,
+  "direction": 0.625,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 1.0373219551020754,
+  "edge": false,
+  "width": 0.04328243931134542,
+  "baseline_width": 0.07253454266439519
+ },
+ "h10": {
+  "coverage": 0.4583333333333333,
+  "baseline_coverage": 0.75,
+  "pinball": 0.016585486124154315,
+  "baseline_pinball": 0.01224844814982895,
+  "mae": 0.040947189158203424,
+  "no_change_mae": 0.03538632352236948,
+  "direction": 0.5,
+  "up_rate": 0.4583333333333333,
+  "edge_t": 0.6965591067658637,
+  "edge": false,
+  "width": 0.05348511139551807,
+  "baseline_width": 0.10220960151631138
+ }
+}

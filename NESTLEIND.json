@@ -1,0 +1,36 @@
+{
+ "ticker": "NESTLEIND",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.4166666666666667,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.01742002290311331,
+  "baseline_pinball": 0.007102466873318512,
+  "mae": 0.04385653180190626,
+  "no_change_mae": 0.023109994198561634,
+  "direction": 0.375,
+  "up_rate": 0.5,
+  "edge_t": 2.4415484582150864,
+  "edge": false,
+  "width": 0.042237017552058,
+  "baseline_width": 0.06874124367244265
+ },
+ "h10": {
+  "coverage": 0.25,
+  "baseline_coverage": 0.75,
+  "pinball": 0.024590702750879476,
+  "baseline_pinball": 0.010305583288536426,
+  "mae": 0.05848642110519494,
+  "no_change_mae": 0.029005635645499517,
+  "direction": 0.4166666666666667,
+  "up_rate": 0.4583333333333333,
+  "edge_t": 2.933609022174777,
+  "edge": false,
+  "width": 0.04188500046730048,
+  "baseline_width": 0.09411955505903609
+ }
+}

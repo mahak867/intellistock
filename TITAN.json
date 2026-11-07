@@ -1,0 +1,36 @@
+{
+ "ticker": "TITAN",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.25,
+  "baseline_coverage": 0.75,
+  "pinball": 0.026554451158410815,
+  "baseline_pinball": 0.010381565130757931,
+  "mae": 0.06318955938519011,
+  "no_change_mae": 0.033365140599825725,
+  "direction": 0.5,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 2.686272230716392,
+  "edge": false,
+  "width": 0.05593881607055673,
+  "baseline_width": 0.08369684238779973
+ },
+ "h10": {
+  "coverage": 0.20833333333333334,
+  "baseline_coverage": 0.625,
+  "pinball": 0.0328780578345779,
+  "baseline_pinball": 0.014524241638734406,
+  "mae": 0.07774124752925109,
+  "no_change_mae": 0.047683633245392265,
+  "direction": 0.375,
+  "up_rate": 0.6666666666666666,
+  "edge_t": 2.66226910117134,
+  "edge": false,
+  "width": 0.06159415245056151,
+  "baseline_width": 0.12095475442897889
+ }
+}

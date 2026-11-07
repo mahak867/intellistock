@@ -1,0 +1,36 @@
+{
+ "ticker": "DRREDDY",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.2916666666666667,
+  "baseline_coverage": 0.8333333333333334,
+  "pinball": 0.009601181628865002,
+  "baseline_pinball": 0.008436999931527269,
+  "mae": 0.028253477272036347,
+  "no_change_mae": 0.025910168304673336,
+  "direction": 0.5833333333333334,
+  "up_rate": 0.4583333333333333,
+  "edge_t": 0.6723005164706299,
+  "edge": false,
+  "width": 0.04400360584259033,
+  "baseline_width": 0.07993217448347412
+ },
+ "h10": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.625,
+  "pinball": 0.015815552126925824,
+  "baseline_pinball": 0.014441011439108782,
+  "mae": 0.043966356222740734,
+  "no_change_mae": 0.04335404376150157,
+  "direction": 0.625,
+  "up_rate": 0.5,
+  "edge_t": 0.09291382780737885,
+  "edge": false,
+  "width": 0.05424338181813548,
+  "baseline_width": 0.11161208884504446
+ }
+}

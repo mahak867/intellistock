@@ -1,0 +1,36 @@
+{
+ "ticker": "ASIANPAINT",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.5,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.01659771472992909,
+  "baseline_pinball": 0.008303281476407695,
+  "mae": 0.04270618690451681,
+  "no_change_mae": 0.0261549130096026,
+  "direction": 0.625,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 2.427096924121896,
+  "edge": false,
+  "width": 0.05639165639877316,
+  "baseline_width": 0.0746392890852355
+ },
+ "h10": {
+  "coverage": 0.2916666666666667,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.02970500526921094,
+  "baseline_pinball": 0.01380382786772283,
+  "mae": 0.07292512481177656,
+  "no_change_mae": 0.041021494010441896,
+  "direction": 0.375,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 2.786874316438432,
+  "edge": false,
+  "width": 0.06224180261294047,
+  "baseline_width": 0.11059282060963728
+ }
+}

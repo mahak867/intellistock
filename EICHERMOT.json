@@ -1,0 +1,36 @@
+{
+ "ticker": "EICHERMOT",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.16666666666666666,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.028712531799610558,
+  "baseline_pinball": 0.012498685444007543,
+  "mae": 0.07150483034671273,
+  "no_change_mae": 0.03566974423591914,
+  "direction": 0.5,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 2.5237381474879617,
+  "edge": false,
+  "width": 0.061463145414988096,
+  "baseline_width": 0.083147254577711
+ },
+ "h10": {
+  "coverage": 0.2916666666666667,
+  "baseline_coverage": 0.6666666666666666,
+  "pinball": 0.03892055282579906,
+  "baseline_pinball": 0.016901377350196794,
+  "mae": 0.08962364814747725,
+  "no_change_mae": 0.053150772319195884,
+  "direction": 0.5,
+  "up_rate": 0.625,
+  "edge_t": 1.944632221184456,
+  "edge": false,
+  "width": 0.06529872020085652,
+  "baseline_width": 0.11327722804323503
+ }
+}

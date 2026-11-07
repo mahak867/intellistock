@@ -1,0 +1,36 @@
+{
+ "ticker": "INDUSINDBK",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.125,
+  "baseline_coverage": 0.6666666666666666,
+  "pinball": 0.0344946494099199,
+  "baseline_pinball": 0.020086803243077187,
+  "mae": 0.08341197125871302,
+  "no_change_mae": 0.05624323776914786,
+  "direction": 0.4166666666666667,
+  "up_rate": 0.5,
+  "edge_t": 1.9875845468238469,
+  "edge": false,
+  "width": 0.06225125988324487,
+  "baseline_width": 0.09652490957686517
+ },
+ "h10": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.6666666666666666,
+  "pinball": 0.042284476083924355,
+  "baseline_pinball": 0.024521039607402272,
+  "mae": 0.09455340329262422,
+  "no_change_mae": 0.06612026325733034,
+  "direction": 0.5,
+  "up_rate": 0.4166666666666667,
+  "edge_t": 1.4543257544240762,
+  "edge": false,
+  "width": 0.06679088870684302,
+  "baseline_width": 0.127877787369547
+ }
+}

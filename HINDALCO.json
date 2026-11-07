@@ -1,0 +1,36 @@
+{
+ "ticker": "HINDALCO",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.2916666666666667,
+  "baseline_coverage": 0.5833333333333334,
+  "pinball": 0.028791915907624716,
+  "baseline_pinball": 0.014602407628148758,
+  "mae": 0.07605227995958401,
+  "no_change_mae": 0.042467202606764655,
+  "direction": 0.5833333333333334,
+  "up_rate": 0.5,
+  "edge_t": 2.7785082165699553,
+  "edge": false,
+  "width": 0.08326589862505585,
+  "baseline_width": 0.09820617736210406
+ },
+ "h10": {
+  "coverage": 0.25,
+  "baseline_coverage": 0.6666666666666666,
+  "pinball": 0.04422486169331608,
+  "baseline_pinball": 0.018643952308914365,
+  "mae": 0.11036625882968694,
+  "no_change_mae": 0.05652697522713942,
+  "direction": 0.5,
+  "up_rate": 0.6666666666666666,
+  "edge_t": 3.4884592586162655,
+  "edge": false,
+  "width": 0.09482417106628427,
+  "baseline_width": 0.13925100783249478
+ }
+}

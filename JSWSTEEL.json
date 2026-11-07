@@ -1,0 +1,36 @@
+{
+ "ticker": "JSWSTEEL",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.16666666666666666,
+  "baseline_coverage": 0.75,
+  "pinball": 0.018116844907230818,
+  "baseline_pinball": 0.009331903347489325,
+  "mae": 0.0465088002234042,
+  "no_change_mae": 0.027932803281383627,
+  "direction": 0.5833333333333334,
+  "up_rate": 0.5,
+  "edge_t": 2.196822771216615,
+  "edge": false,
+  "width": 0.04453337987263998,
+  "baseline_width": 0.07793537781775044
+ },
+ "h10": {
+  "coverage": 0.16666666666666666,
+  "baseline_coverage": 0.75,
+  "pinball": 0.0261865714369257,
+  "baseline_pinball": 0.014280234711274285,
+  "mae": 0.06219767411557028,
+  "no_change_mae": 0.040216894751028964,
+  "direction": 0.375,
+  "up_rate": 0.6666666666666666,
+  "edge_t": 1.8467376568427938,
+  "edge": false,
+  "width": 0.04684949119885758,
+  "baseline_width": 0.09810745358083295
+ }
+}

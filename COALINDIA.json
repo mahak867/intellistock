@@ -1,0 +1,36 @@
+{
+ "ticker": "COALINDIA",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.4166666666666667,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.021185373884751103,
+  "baseline_pinball": 0.010080884765725542,
+  "mae": 0.04997453686537331,
+  "no_change_mae": 0.029555200248126374,
+  "direction": 0.5,
+  "up_rate": 0.625,
+  "edge_t": 2.335862795769621,
+  "edge": false,
+  "width": 0.04876181681950875,
+  "baseline_width": 0.08039931105893731
+ },
+ "h10": {
+  "coverage": 0.2916666666666667,
+  "baseline_coverage": 0.5833333333333334,
+  "pinball": 0.029102701861052627,
+  "baseline_pinball": 0.01272643000916246,
+  "mae": 0.07000835551870921,
+  "no_change_mae": 0.03763382107973645,
+  "direction": 0.4583333333333333,
+  "up_rate": 0.625,
+  "edge_t": 3.7670737136419867,
+  "edge": false,
+  "width": 0.05699845751126605,
+  "baseline_width": 0.10129721784430563
+ }
+}

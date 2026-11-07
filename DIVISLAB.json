@@ -1,0 +1,36 @@
+{
+ "ticker": "DIVISLAB",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.03739976954726602,
+  "baseline_pinball": 0.012668261514586452,
+  "mae": 0.09120708304486369,
+  "no_change_mae": 0.04022431123759581,
+  "direction": 0.5416666666666666,
+  "up_rate": 0.5,
+  "edge_t": 2.5612473828230287,
+  "edge": false,
+  "width": 0.07324884732564274,
+  "baseline_width": 0.08977333787339477
+ },
+ "h10": {
+  "coverage": 0.375,
+  "baseline_coverage": 0.625,
+  "pinball": 0.04813330972180651,
+  "baseline_pinball": 0.016867427867761058,
+  "mae": 0.1100859290144615,
+  "no_change_mae": 0.055029468899735624,
+  "direction": 0.5,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 2.3841065878658103,
+  "edge": false,
+  "width": 0.07565866311391223,
+  "baseline_width": 0.1280185930016292
+ }
+}

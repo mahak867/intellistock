@@ -1,0 +1,36 @@
+{
+ "ticker": "HEROMOTOCO",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.25,
+  "baseline_coverage": 0.75,
+  "pinball": 0.03207036096162539,
+  "baseline_pinball": 0.010616099627826031,
+  "mae": 0.08339413360380732,
+  "no_change_mae": 0.035884079838223615,
+  "direction": 0.5416666666666666,
+  "up_rate": 0.5,
+  "edge_t": 2.856201758674486,
+  "edge": false,
+  "width": 0.09671968619028726,
+  "baseline_width": 0.0956646047734014
+ },
+ "h10": {
+  "coverage": 0.3333333333333333,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.048021680683149916,
+  "baseline_pinball": 0.016734797869630964,
+  "mae": 0.1151849721945523,
+  "no_change_mae": 0.04945264823110729,
+  "direction": 0.5,
+  "up_rate": 0.5833333333333334,
+  "edge_t": 3.016473969562176,
+  "edge": false,
+  "width": 0.10972695748011274,
+  "baseline_width": 0.14271380350954155
+ }
+}

@@ -1,0 +1,36 @@
+{
+ "ticker": "ONGC",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.4166666666666667,
+  "baseline_coverage": 0.75,
+  "pinball": 0.020503746597169702,
+  "baseline_pinball": 0.010469309716400694,
+  "mae": 0.049442876004506954,
+  "no_change_mae": 0.029284929613287176,
+  "direction": 0.625,
+  "up_rate": 0.5416666666666666,
+  "edge_t": 1.8414486431972716,
+  "edge": false,
+  "width": 0.04773603677749635,
+  "baseline_width": 0.08928555324284242
+ },
+ "h10": {
+  "coverage": 0.4166666666666667,
+  "baseline_coverage": 0.7083333333333334,
+  "pinball": 0.023808708360752454,
+  "baseline_pinball": 0.013120525021981614,
+  "mae": 0.057722155411928856,
+  "no_change_mae": 0.0352940345230478,
+  "direction": 0.75,
+  "up_rate": 0.5,
+  "edge_t": 1.7636030829541078,
+  "edge": false,
+  "width": 0.0502824246883394,
+  "baseline_width": 0.12540443473934462
+ }
+}

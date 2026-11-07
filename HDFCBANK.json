@@ -1,0 +1,36 @@
+{
+ "ticker": "HDFCBANK",
+ "origins": 24,
+ "from": "2024-11-14",
+ "to": "2026-09-24",
+ "samples": 30,
+ "context": 256,
+ "h5": {
+  "coverage": 0.3333333333333333,
+  "baseline_coverage": 0.75,
+  "pinball": 0.01655426070682423,
+  "baseline_pinball": 0.009537421324357686,
+  "mae": 0.04172266350725188,
+  "no_change_mae": 0.026252167299648705,
+  "direction": 0.5833333333333334,
+  "up_rate": 0.5,
+  "edge_t": 2.1163341783542915,
+  "edge": false,
+  "width": 0.042349112033844026,
+  "baseline_width": 0.0625115111892266
+ },
+ "h10": {
+  "coverage": 0.20833333333333334,
+  "baseline_coverage": 0.6666666666666666,
+  "pinball": 0.027095552255438377,
+  "baseline_pinball": 0.011808796464194152,
+  "mae": 0.06250709044792298,
+  "no_change_mae": 0.03368407456179312,
+  "direction": 0.4166666666666667,
+  "up_rate": 0.5,
+  "edge_t": 3.301023806579148,
+  "edge": false,
+  "width": 0.04079158107439681,
+  "baseline_width": 0.09298304568707211
+ }
+}
