@@ -1,0 +1,7 @@
+-r requirements.txt
+# Optional: the Kronos forecaster (ml/kronos). Large download; not needed for the app.
+torch>=2.2
+einops==0.8.1
+safetensors>=0.4
+huggingface_hub>=0.33
+tqdm
