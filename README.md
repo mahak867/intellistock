@@ -56,6 +56,8 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Mutual funds** | Import a CAS statement (CAMS, KFintech, NSDL, CDSL) or add funds by hand; valued at AMFI's daily NAV; XIRR from statement transactions. The CAS reader (casparser) has only been tested with synthetic data, not a real statement |
 | **Dividends, bonuses, splits** | Record them per holding (or pick from NSE's list; NSE's website blocks cloud servers, so lookup may fail there) and quantities, average price and returns include them |
 | **Return vs NIFTY 50** | XIRR per holding and overall, compared with the same cash flows in NIFTY 50; holdings under a year show plain return |
+| **Time Machine** | Replays a planned trade 10,000 times on the stock's own past days (block bootstrap of daily bars), then runs the same stop and target from every past close. Shows how often the target or the stop came first, the price range at the end, and average R after costs. A replay of the past, not a forecast |
+| **Pre-trade risk check** | Sizes a trade to your rules (max loss, max in one stock, cash buffer, reward:risk, lot size), names the rule that limits it, blocks it outside NSE hours or when a rule is broken, and shows what a 10% to 50% fall in that stock does to your whole portfolio |
 | **Tax lots and harvesting** | FIFO lots from your tradebook, gains by financial year, and how much long-term gain fits in this year's Rs 1.25 lakh exemption |
 | **Mobile** | Phone layout with a bottom bar, installable from the browser (Add to Home Screen). No offline mode on purpose. Checked in an emulated 390px browser, not on a real phone |
 | **API** | FastAPI, JWT auth, refresh tokens, rate limiting, Redis caching |
@@ -64,7 +66,7 @@ IntelliStock is a full-stack, production-ready market intelligence platform buil
 | **Monitoring** | Prometheus metrics, Grafana dashboards, Sentry error tracking, OpenTelemetry |
 | **Deployment** | Docker + Compose (`infra/docker/`); GitHub Actions CI runs the backend tests (`.github/workflows/ci.yml`); no automated cloud deploy yet |
 | **Database** | PostgreSQL + SQLAlchemy async, Alembic migrations, Redis cache |
-| **Testing** | 241 automated tests (pytest) — tools, data layer, API, backtest, security |
+| **Testing** | 320 automated tests (pytest) — tools, data layer, API, backtest, security |
 
 ---
 
@@ -379,6 +381,26 @@ Two independent dashboards ship in this repo, both talking to the same backend A
 
 ---
 
+## ⚖️ Fine print
+
+**Not investment advice.** IntelliStock reads public data and does arithmetic. It does not know your situation and cannot see the future. It is not registered with SEBI as an investment adviser or research analyst, and nothing in it is a recommendation to buy or sell. Decide for yourself, and talk to a SEBI-registered adviser if you need advice.
+
+**Ranges, not calls.** Forecasts are shown as price ranges because the direction model showed no edge in testing (see Measured accuracy). The Time Machine replays a stock's own past; results, news, policy and circuit limits can do what the past never did.
+
+**Data can be late or wrong.** End-of-day NSE files, Yahoo Finance, AMFI NAVs and Google News are free sources that can lag, change format or fail. Every screen says where its numbers come from and when. Placeholder prices are labelled, and outside development the API refuses to serve them.
+
+**Nothing trades without you.** The Zerodha connection previews every order and needs your confirmation; the pre-trade check and Time Machine never place anything.
+
+**Stops are not guarantees.** A gap at the open can fill a stop-loss well below its price. The Time Machine fills gaps at the open for that reason.
+
+**Most traders lose money.** SEBI's own studies found that about 9 in 10 individual F&O traders lost money. Size positions so a bad run does not end you.
+
+**Tax figures are estimates.** Have a chartered accountant confirm before filing.
+
+Third-party code and its licences are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+---
+
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
@@ -397,7 +419,7 @@ Built as part of B.Tech Computer Science curriculum — designed to production s
 
 | Trader | Investor |
 | --- | --- |
-| position size and stop, trade costs, trade journal, option price/Greeks, payoff builder, OI and max pain, daily loss limit, pre-trade checklist, expiry dates, screener, backtester | portfolio allocation, portfolio risk, XIRR, SIP and goal planner, rebalancing, quality score, announcement digest, capital gains estimate |
+| position size and stop, pre-trade risk check, Time Machine, trade costs, trade journal, option price/Greeks, payoff builder, OI and max pain, daily loss limit, pre-trade checklist, expiry dates, screener, backtester | portfolio allocation, portfolio risk, XIRR, SIP and goal planner, rebalancing, quality score, announcement digest, capital gains estimate |
 
 Also in the library but not yet wired to the UI: alert rules with Telegram/WhatsApp senders (`alerts.py`, needs your bot tokens) and a factor ranker (`factors.py`, only worth using if it passes its own out-of-sample test on real data).
 

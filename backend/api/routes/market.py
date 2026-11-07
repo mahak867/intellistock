@@ -24,6 +24,7 @@ from backend.tools import backtest as BT
 from backend.tools import portfolio as PF
 from backend.tools import portrisk as PR
 from backend.tools import screener as SC
+from backend.tools import timemachine as TM
 from ml.forecast.quick_forecast import build_features, forecast
 
 
@@ -159,6 +160,48 @@ async def market_backtest(ticker: str, cost_bps: float = Query(10, ge=0, le=200)
         return await run_in_threadpool(_backtest, _ticker(ticker), cost_bps, slippage_bps, _ver())
     except NoData as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@lru_cache(maxsize=64)
+def _time_machine(t: str, entry: float | None, stop: float | None, target: float | None, stop_pct: float | None,
+                  target_pct: float | None, side: str, horizon: int, cost_bps: float, lookback: int, ver: tuple) -> dict:
+    p = providers.get_prices(t, lookback + horizon + 10)
+    last = float(p.df["close"].iloc[-1])
+    e = entry or last
+    sign = 1 if side == "long" else -1
+    if stop is None:
+        if stop_pct is None:
+            raise ValueError("give a stop price or a stop distance in %")
+        stop = e * (1 - sign * stop_pct / 100)
+    if target is None:
+        if target_pct is None:
+            raise ValueError("give a target price or a target distance in %")
+        target = e * (1 + sign * target_pct / 100)
+    plan = TM.Plan(round(e, 2), round(stop, 2), round(target, 2), side, horizon, cost_bps)
+    out = {"ticker": t, **_meta(p), "last_close": round(last, 2),
+           "plan": {"entry": plan.entry, "stop": plan.stop, "target": plan.target, "side": side,
+                    "horizon_days": horizon, "cost_bps": cost_bps, "entry_from": "you" if entry else "last close"},
+           "replays": TM.simulate(TM.build_pool(p.df, lookback), plan),
+           "history": TM.history_replay(p.df, plan, lookback)}
+    if abs(e / last - 1) > 0.10:
+        out["replays"]["notes"].insert(0, f"Your entry is {100 * (e / last - 1):+.0f}% from the last close {last:,.2f}; "
+                                          "the replays start at your entry, not today's price.")
+    return out
+
+
+@router.get("/time-machine/{ticker}", summary="Replay a planned trade on the stock's own past days (10,000 simulations plus history)")
+async def market_time_machine(ticker: str, entry: float | None = Query(None, gt=0),
+                              stop: float | None = Query(None, gt=0), target: float | None = Query(None, gt=0),
+                              stop_pct: float | None = Query(None, gt=0, lt=100), target_pct: float | None = Query(None, gt=0, le=500),
+                              side: str = Query("long", pattern="^(long|short)$"), horizon: int = Query(10, ge=1, le=120),
+                              cost_bps: float = Query(15, ge=0, le=500), lookback: int = Query(500, ge=150, le=1500)):
+    try:
+        return await run_in_threadpool(_time_machine, _ticker(ticker), entry, stop, target, stop_pct, target_pct,
+                                       side, horizon, cost_bps, lookback, _ver())
+    except NoData as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 class PortfolioIn(BaseModel):

@@ -85,6 +85,8 @@ function ToolView({ tool, data }: { tool: Tool; data: any }) {
   if (tool.view === "screener") return <Screener data={data} />;
   if (tool.view === "fundscreen") return <FundScreen data={data} />;
   if (tool.view === "taxlots") return <TaxLots data={data} />;
+  if (tool.view === "timemachine") return <TimeMachine data={data} />;
+  if (tool.view === "pretrade") return <PreTrade data={data} />;
   if (tool.view === "portrisk") {
     const a = data.allocation, m = Object.keys(data.correlation.matrix);
     return (
@@ -185,6 +187,91 @@ function Screener({ data }: { data: { rows: Record<string, unknown>[]; synthetic
         ))}
       </div>
       <Table rows={shown} />
+    </div>
+  );
+}
+
+const FinePrint = ({ children }: { children: React.ReactNode }) => (
+  <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">{children}</p>
+);
+
+function TimeMachine({ data }: { data: any }) {
+  const m = data.replays, h = data.history, p = data.plan;
+  const pc = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const band = (q: number, name: string, color: string) => ({ name, color, pts: m.bands.map((b: number[], i: number) => [i, b[q]] as [number, number]) });
+  const flat = (y: number, name: string, color: string) => ({ name, color, pts: [[0, y], [m.horizon_days, y]] as [number, number][] });
+  const lean = m.verdict.startsWith("Strongly toward the target") || m.verdict.startsWith("Leans toward the target") ? "text-success"
+    : m.verdict.includes("toward the stop") ? "text-destructive" : "text-foreground";
+  return (
+    <div className="space-y-5">
+      <SourceBanner data={data} />
+      <div className="text-sm text-muted-foreground">
+        {p.side === "long" ? "Buy" : "Short"} {data.ticker} at <span className="font-num text-foreground">{p.entry}</span> ({p.entry_from}),
+        stop <span className="font-num text-foreground">{p.stop}</span>, target <span className="font-num text-foreground">{p.target}</span>,
+        hold up to {p.horizon_days} trading days, {p.cost_bps} bps costs.
+      </div>
+      <div className={cn("font-display text-lg font-semibold", lean)}>{m.verdict}</div>
+      <LineSvg series={[
+        band(4, "95th percentile", "var(--muted-foreground)"), band(3, "75th", "color-mix(in srgb, var(--primary) 50%, transparent)"),
+        band(2, "Median path", "var(--primary)"), band(1, "25th", "color-mix(in srgb, var(--primary) 50%, transparent)"),
+        band(0, "5th percentile", "var(--muted-foreground)"),
+        flat(p.target, "Target", "var(--success)"), flat(p.stop, "Stop", "var(--destructive)"),
+      ]} xfmt={(x) => `day ${Math.round(x)}`} />
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+        <Stat k="Target hit first" v={pc(m.p_target)} tone="good" />
+        <Stat k="Stop hit first" v={pc(m.p_stop)} tone="bad" />
+        <Stat k="Neither in time" v={pc(m.p_neither)} />
+        <Stat k="Ended in profit" v={pc(m.p_green)} />
+        <Stat k="Average R (after costs)" v={m.avg_R.toFixed(2)} tone={m.avg_R >= 0 ? "good" : "bad"} />
+        <Stat k="1 in 20 ends worse than" v={`${m.worst_R_5pct}R`} tone="bad" />
+        <Stat k={`Price on day ${m.horizon_days}, 5% to 95%`} v={`${m.p5_final.toLocaleString("en-IN")} – ${m.p95_final.toLocaleString("en-IN")}`} />
+        <Stat k="Median price then" v={m.median_final.toLocaleString("en-IN")} />
+      </div>
+      <div className="space-y-1 text-sm text-muted-foreground">{m.notes.map((n: string) => <p key={n}>{n}</p>)}</div>
+      {h.starts > 0 && (
+        <section>
+          <h3 className="mb-2 text-sm font-medium text-muted-foreground">What really happened: the same stop and target from every close, {h.from} to {h.to}</h3>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+            <Stat k="Start days" v={h.starts} />
+            <Stat k="Target first" v={`${h.target} (${pc(h.target / h.starts)})`} tone="good" />
+            <Stat k="Stop first" v={`${h.stop} (${pc(h.stop / h.starts)})`} tone="bad" />
+            <Stat k="Average R" v={h.avg_R.toFixed(2)} tone={h.avg_R >= 0 ? "good" : "bad"} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{h.note}</p>
+          <div className="mt-3"><Table rows={h.recent} /></div>
+        </section>
+      )}
+      <FinePrint>
+        {m.replays.toLocaleString("en-IN")} replays built from {m.pool_days} past days of this stock, drawn in {m.block_days}-day blocks; seed {m.seed}, so the same inputs give the same numbers.
+        A day that touches both levels counts as the stop. A gap past a level fills at the open. End-of-day prices can be delayed or wrong.
+        This replays the past. It is not a prediction, not a recommendation, and not investment advice. Method adapted from Jake Schincariol&apos;s day-trader-skill (MIT).
+      </FinePrint>
+    </div>
+  );
+}
+
+function PreTrade({ data }: { data: any }) {
+  return (
+    <div className="space-y-5">
+      <div className={cn("rounded-xl border p-4 text-sm", data.pass ? "border-success/50" : "border-destructive/50")}>
+        <div className={cn("font-display text-xl font-semibold", data.pass ? "text-success" : "text-destructive")}>
+          {data.pass ? `Within your rules: up to ${data.max_qty.toLocaleString("en-IN")} ${data.symbol}` : "Blocked by your rules"}
+        </div>
+        {data.blocking.map((t: string) => <div key={t} className="mt-1 text-destructive">Blocking: {t}</div>)}
+        {data.warnings.map((t: string) => <div key={t} className="mt-1 text-muted-foreground">Warning: {t}</div>)}
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+        <Stat k="Quantity checked" v={data.qty.toLocaleString("en-IN")} />
+        <Stat k="Most you can take" v={data.max_qty.toLocaleString("en-IN")} />
+        <Stat k="Limited by" v={data.bound_by} />
+        <Stat k="Position value" v={inr(data.position_value)} />
+        <Stat k="Of your portfolio" v={`${data.position_pct}%`} />
+        <Stat k="Loss at the stop" v={data.loss_at_stop == null ? "no stop" : `${inr(data.loss_at_stop)} (${data.loss_at_stop_pct}%)`} tone="bad" />
+        <Stat k="Reward:risk" v={data.reward_risk ?? "—"} />
+      </div>
+      <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">Your limits (the smallest sets the size)</h3><Table rows={data.limits} /></section>
+      <section><h3 className="mb-2 text-sm font-medium text-muted-foreground">If this stock moves against you (includes what you already hold)</h3><Table rows={data.if_it_moves_against_you} /></section>
+      <FinePrint>{data.note} Rules adapted from Jake Schincariol&apos;s day-trader-skill (MIT). Nothing here places an order.</FinePrint>
     </div>
   );
 }

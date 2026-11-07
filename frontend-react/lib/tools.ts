@@ -8,7 +8,7 @@ export type Tool = {
   method: "POST" | "GET"; path: string; demoData?: boolean; fields: Field[];
   build: (v: Record<string, string>) => unknown | null; // null for GET
   pathFor?: (v: Record<string, string>) => string;
-  view?: "payoff" | "backtest" | "screener" | "portrisk" | "fundscreen" | "taxlots";
+  view?: "payoff" | "backtest" | "screener" | "portrisk" | "fundscreen" | "taxlots" | "timemachine" | "pretrade";
 };
 
 const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
@@ -98,6 +98,53 @@ export const TOOLS: Tool[] = [
     blurb: "Tick every line that is true. Required lines block the trade until they are.",
     fields: [{ name: "answers", label: "Before you click buy", type: "checks" }],
     build: (v) => JSON.parse(v.answers || "{}"),
+  },
+  {
+    id: "pretrade", group: "Trader", title: "Pre-trade risk check", method: "POST", path: "/tools/risk/pretrade", view: "pretrade",
+    blurb: "Sizes the trade to your own rules, names the rule that limits it, and blocks it if a rule is broken. Shows what a fall in this one stock does to your whole portfolio.",
+    fields: [
+      { name: "symbol", label: "Symbol", type: "text", def: "TCS" },
+      { name: "side", label: "Side", type: "select", options: ["long", "short"], def: "long" },
+      { name: "entry", label: "Entry price", type: "number", def: "3000" },
+      { name: "stop", label: "Stop price", type: "number", def: "2940" },
+      { name: "target", label: "Target price", type: "number", def: "3150", optional: true },
+      { name: "qty", label: "Quantity", type: "number", def: "", optional: true, hint: "blank = size it for me" },
+      { name: "product", label: "Product", type: "select", options: ["delivery", "intraday"], def: "delivery" },
+      { name: "lot", label: "Lot size", type: "number", def: "1" },
+      { name: "pv", label: "Portfolio value (all holdings + cash)", type: "number", def: "1000000" },
+      { name: "cash", label: "Free cash", type: "number", def: "", optional: true },
+      { name: "held", label: "Already hold of this stock, ₹", type: "number", def: "0" },
+      { name: "maxpos", label: "Max in one stock, %", type: "number", def: "20" },
+      { name: "risk", label: "Max loss per trade, % of portfolio", type: "number", def: "1" },
+      { name: "rr", label: "Minimum reward:risk", type: "number", def: "1.5" },
+      { name: "blocked", label: "Blocked symbols (comma separated)", type: "text", def: "", optional: true },
+    ],
+    build: (v) => ({
+      symbol: v.symbol, side: v.side, entry: num(v.entry), stop: num(v.stop), target: num(v.target), qty: num(v.qty),
+      product: v.product, lot_size: num(v.lot) ?? 1, portfolio_value: num(v.pv), cash: num(v.cash), held_value: num(v.held) ?? 0,
+      max_position_pct: num(v.maxpos), risk_pct: num(v.risk), min_reward_risk: num(v.rr),
+      blocked: v.blocked.split(",").map((x) => x.trim()).filter(Boolean),
+    }),
+  },
+  {
+    id: "tm", group: "Trader", title: "Time Machine", method: "GET", path: "/market/time-machine", demoData: true, view: "timemachine",
+    blurb: "Replays your planned trade 10,000 times on the stock's own past days, then runs the same stop and target from every past close. Shows how often the target or the stop came first. A replay of the past, not a forecast.",
+    fields: [
+      { name: "ticker", label: "Ticker", type: "text", def: "TCS" },
+      { name: "side", label: "Side", type: "select", options: ["long", "short"], def: "long" },
+      { name: "entry", label: "Entry price", type: "number", def: "" , hint: "blank = last close" },
+      { name: "stop_pct", label: "Stop distance %", type: "number", def: "3" },
+      { name: "target_pct", label: "Target distance %", type: "number", def: "6" },
+      { name: "horizon", label: "Hold at most, trading days", type: "number", def: "10" },
+      { name: "cost", label: "Round-trip costs, bps", type: "number", def: "15" },
+    ],
+    pathFor: (v) => {
+      const t = encodeURIComponent(v.ticker.trim() || "TCS");
+      const q = new URLSearchParams({ side: v.side, stop_pct: v.stop_pct || "3", target_pct: v.target_pct || "6", horizon: v.horizon || "10", cost_bps: v.cost || "15" });
+      if (v.entry.trim()) q.set("entry", v.entry.trim());
+      return `/market/time-machine/${t}?${q}`;
+    },
+    build: () => null,
   },
   {
     id: "expiry", group: "Trader", title: "Expiry dates", method: "POST", path: "/tools/calendar/expiries",

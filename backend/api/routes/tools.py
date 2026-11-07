@@ -24,6 +24,7 @@ from backend.tools import journal as J
 from backend.tools import options as O
 from backend.tools import planner as PL
 from backend.tools import portfolio as PF
+from backend.tools import pretrade as PT
 from backend.tools import risklimits as RL
 from backend.tools import sizing as SZ
 from backend.tools import tax as TX
@@ -189,6 +190,41 @@ def risk_checklist(answers: dict[str, bool]):
 @router.get("/risk/checklist-items")
 def checklist_items():
     return [{"text": t, "required": r} for t, r in RL.DEFAULT_CHECKLIST]
+
+
+class PreTradeIn(BaseModel):
+    symbol: str = Field(min_length=1, max_length=20)
+    entry: float = Field(gt=0)
+    stop: float | None = Field(default=None, gt=0)
+    target: float | None = Field(default=None, gt=0)
+    qty: int | None = Field(default=None, ge=1)
+    side: Literal["long", "short"] = "long"
+    product: Literal["delivery", "intraday"] = "delivery"
+    lot_size: int = Field(default=1, ge=1)
+    held_value: float = Field(default=0, ge=0)
+    cost_per_share: float = Field(default=0, ge=0)
+    portfolio_value: float = Field(gt=0)
+    cash: float | None = Field(default=None, ge=0)
+    cash_buffer_pct: float = Field(default=10, ge=0, lt=100)
+    max_position_pct: float = Field(default=20, gt=0, le=100)
+    max_loss: float | None = Field(default=None, gt=0)
+    risk_pct: float = Field(default=1, gt=0, le=100)
+    min_reward_risk: float = Field(default=1.5, ge=0)
+    require_stop: bool = True
+    blocked: list[str] = []
+    check_market_hours: bool = True
+
+
+@router.post("/risk/pretrade", summary="Size a trade and check it against your rules before you place it")
+def risk_pretrade(b: PreTradeIn):
+    from datetime import datetime, timezone
+    try:
+        t = PT.Trade(b.symbol, b.entry, b.stop, b.target, b.qty, b.side, b.product, b.lot_size, b.held_value, b.cost_per_share)
+        r = PT.Rules(b.portfolio_value, b.cash, b.cash_buffer_pct, b.max_position_pct, b.max_loss, b.risk_pct,
+                     b.min_reward_risk, b.require_stop, b.blocked)
+        return PT.check(t, r, datetime.now(timezone.utc) if b.check_market_hours else None)
+    except ValueError as e:
+        _bad(e)
 
 
 class ExpiryIn(BaseModel):

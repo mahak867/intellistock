@@ -77,6 +77,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="min-w-0 flex-1 overflow-x-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-8 sm:py-8">{children}</div>
+        <footer className="mx-auto max-w-[1400px] px-4 pb-6 text-[11px] leading-relaxed text-muted-foreground sm:px-8">
+          Not investment advice. IntelliStock is not a SEBI-registered adviser; it shows ranges and replays of the past, not buy or sell calls.
+          Free data sources can be late or wrong, and each screen says where its numbers come from.
+        </footer>
       </main>
 
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-sidebar/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
