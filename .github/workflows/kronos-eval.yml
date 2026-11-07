@@ -1,0 +1,82 @@
+name: Kronos on NSE
+
+# Tests the optional Kronos forecaster (ml/kronos) on NIFTY 50 prices before the app is allowed to show it.
+# Runs on GitHub's machines because Hugging Face (model weights) and Yahoo Finance (prices) are reachable there.
+# Ten shards of five stocks run in parallel; the summary job writes the scorecard to the job summary and to the
+# kronos-results branch.
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: "Paths per forecast"
+        default: "30"
+  push:
+    branches: [main]
+    paths: ["ml/kronos/**", "scripts/evaluate_kronos.py", ".github/workflows/kronos-eval.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (CPU PyTorch only)
+        run: |
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+            torch einops==0.8.1 safetensors huggingface_hub tqdm numpy pandas yfinance==1.8.0 pytest
+      - name: Plumbing tests
+        run: python -m pytest backend/tests/test_kronos.py -q
+      - name: Evaluate this shard
+        run: |
+          TICKERS=$(python - <<'EOF'
+          import ast, pathlib
+          src = pathlib.Path("ml/data/pipeline.py").read_text()
+          start = src.index("NIFTY50_TICKERS = [")
+          names = ast.literal_eval(src[start + len("NIFTY50_TICKERS = "): src.index("]", start) + 1])
+          print(" ".join(names[${{ matrix.shard }}::10]))
+          EOF
+          )
+          echo "Stocks: $TICKERS"
+          python scripts/evaluate_kronos.py run $TICKERS --out results --samples ${{ inputs.samples || '30' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kronos-${{ matrix.shard }}
+          path: results/
+          if-no-files-found: ignore
+
+  summary:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pandas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: kronos-*
+          path: results
+          merge-multiple: true
+      - name: Scorecard
+        run: |
+          python scripts/evaluate_kronos.py summary results --md results/SUMMARY.md
+          cat results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to the kronos-results branch
+        run: |
+          cd results
+          git init -q -b kronos-results && git add .
+          git -c user.name=mahak867 -c user.email=mahakfahad07@gmail.com commit -qm "Kronos NSE evaluation"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" kronos-results

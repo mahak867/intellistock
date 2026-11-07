@@ -26,7 +26,7 @@ def future_days(last: pd.Timestamp, n: int) -> pd.DatetimeIndex:
 
 def _stamps(idx) -> np.ndarray:
     idx = pd.DatetimeIndex(idx)
-    return np.stack([idx.minute, idx.hour, idx.weekday, idx.day, idx.month], axis=1).astype(np.float32)
+    return np.stack([idx.minute, idx.hour, idx.day_of_week, idx.day, idx.month], axis=1).astype(np.float32)
 
 
 class KronosPaths:
